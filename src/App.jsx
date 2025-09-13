@@ -1,6 +1,6 @@
-import React from "react";
 import CodeBlock from "./components/CodeBlock";
 import TypingArea from "./components/TypingArea";
+import Keyboard from "./components/Keyboard";
 
 function App() {
     const code = `function helloWorld() {
@@ -12,6 +12,7 @@ function App() {
             <h1 className="text-4xl font-bold mb-8">Learn US Keys</h1>
             <CodeBlock code={code} />
             <TypingArea />
+            <Keyboard />
         </div>
     );
 }
