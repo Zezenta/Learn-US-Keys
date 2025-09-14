@@ -76,15 +76,19 @@ const Keyboard = () => {
     ];
 
     return (
-        <div className="bg-gray-800 p-2 sm:p-4 rounded-lg shadow-lg w-full max-w-4xl mx-auto">
-            <div className="flex flex-col gap-1 sm:gap-2">
+        <div
+            className="bg-gray-800 p-2 sm:p-4 rounded-lg shadow-lg w-full max-w-3xl mx-auto m-8"
+            style={{ containerType: "inline-size" }}
+        >
+            <div className="flex flex-col" style={{ gap: "0.5cqi" }}>
                 {keyboardLayout.map((row, rowIndex) => (
                     <div
                         key={rowIndex}
-                        className="grid gap-1 sm:gap-2"
+                        className="grid"
                         style={{
                             gridTemplateColumns: "repeat(60, minmax(0, 1fr))",
-                            gridAutoRows: "52px",
+                            gridAutoRows: "6.5cqi",
+                            gap: "0.5cqi",
                         }}
                     >
                         {row.map((key, keyIndex) => (
