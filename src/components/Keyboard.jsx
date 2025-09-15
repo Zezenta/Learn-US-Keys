@@ -77,7 +77,7 @@ const Keyboard = () => {
 
     return (
         <div
-            className="bg-gray-800 p-2 sm:p-4 rounded-lg shadow-lg w-full max-w-3xl mx-auto m-8"
+            className="bg-gray-800 p-2 sm:p-4 rounded-lg shadow-lg w-full max-w-3xl mx-auto m-2"
             style={{ containerType: "inline-size" }}
         >
             <div className="flex flex-col" style={{ gap: "0.5cqi" }}>
