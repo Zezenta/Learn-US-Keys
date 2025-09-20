@@ -33,16 +33,22 @@ jobs:
           script: |
             rm -rf ${{ secrets.DEPLOY_PATH }}/*
 
-
-      # Send build to VPS
-      - name: Deploy build to VPS
-        uses: appleboy/scp-action@v0.1.7
-        with:
-          host: ${{ secrets.SSH_IP }}
-          username: ${{ secrets.SSH_USER }}
-          key: ${{ secrets.SSH_PRIVATE_KEY }}
-          source: "dist/*" 
-          target: ${{ secrets.DEPLOY_PATH }}
+      - name: Deploy with rsync
+        env:
+          SSH_PRIVATE_KEY: ${{ secrets.SSH_PRIVATE_KEY }}
+          REMOTE_HOST: ${{ secrets.SSH_IP }}
+          REMOTE_USER: ${{ secrets.SSH_USER }}
+          REMOTE_PATH: ${{ secrets.DEPLOY_PATH }}
+        run: |
+          # Write the private key to a temp file
+          echo "$SSH_PRIVATE_KEY" > deploy_key
+          chmod 600 deploy_key
+          
+          # Run rsync (copies contents of dist/ to REMOTE_PATH without the dist folder itself)
+          rsync -avz --delete -e "ssh -i deploy_key -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null" dist/ $REMOTE_USER@$REMOTE_HOST:$REMOTE_PATH
+          
+          # Clean up the key file
+          rm deploy_key
 
       - name: Post-deploy commands
         uses: appleboy/ssh-action@v0.1.8
