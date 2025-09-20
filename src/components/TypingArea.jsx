@@ -1,215 +1,154 @@
-import React, {
-    useEffect,
-    useLayoutEffect,
-    useMemo,
-    useRef,
-    useState,
-} from "react";
+import React, { useEffect, useMemo, useRef, useState } from "react";
 import { Prism as SyntaxHighlighter } from "react-syntax-highlighter";
 import { vscDarkPlus } from "react-syntax-highlighter/dist/esm/styles/prism";
 
 const MemoSyntax = React.memo(SyntaxHighlighter);
 
-function CodeTyperReveal({
-    codeToType,
-    language = "javascript",
-    height = 320, // visible height in px (type-racer style)
-    padding = 16, // px
-    fontSize = 18, // px
-    lineHeight = 28, // px (1.55 aprox)
-    tabSize = 2,
-}) {
-    const scrollRef = useRef(null);
-    const baseWrapRef = useRef(null); // wraps the base <pre>
-    const overlayClipRef = useRef(null); // wrapper we apply the clip-path to
-    const measureRef = useRef(null);
+function TypingArea({ codeToType, language = "javascript" }) {
     const textareaRef = useRef(null);
+    const caretMarkerRef = useRef(null);
 
     const [value, setValue] = useState("");
-    const [charW, setCharW] = useState(8); // monospace character width
-    const [contentSize, setContentSize] = useState({ w: 0, h: 0 });
 
-    // Precompute line start indices for fast lookup (O(n lines))
-    const lines = useMemo(() => codeToType.split("\n"), [codeToType]);
-    const lineStarts = useMemo(() => {
-        const arr = [0];
-        let acc = 0;
-        for (let i = 0; i < lines.length - 1; i++) {
-            acc += lines[i].length + 1; // +1 for \n
-            arr.push(acc);
-        }
-        return arr; // arr[i] = starting index of line i
-    }, [lines]);
-
-    // Measure character width using the same font/size/line-height
-    useLayoutEffect(() => {
-        if (!measureRef.current) return;
-        const span = measureRef.current;
-        const rect = span.getBoundingClientRect();
-        // There are 100 "0" characters
-        const w = rect.width / 100;
-        if (w > 0) setCharW(w);
-    }, [fontSize, lineHeight]);
-
-    // Measure content size (scrollWidth/scrollHeight) of the base block
-    const measureContentSize = () => {
-        const wrap = baseWrapRef.current;
-        if (!wrap) return;
-        const pre = wrap.querySelector("pre");
-        if (!pre) return;
-        const w = pre.scrollWidth;
-        const h = pre.scrollHeight;
-        setContentSize({ w, h });
-    };
-
-    useLayoutEffect(() => {
-        measureContentSize();
-    }, [codeToType, language, fontSize, lineHeight, padding, tabSize]);
-
-    useEffect(() => {
-        const onResize = () => measureContentSize();
-        window.addEventListener("resize", onResize);
-        return () => window.removeEventListener("resize", onResize);
-    }, []);
-
-    // Clamp to target length (optional)
+    // Clamp to source length (we never reveal past the end)
     const typedLen = Math.min(value.length, codeToType.length);
+    const tabSize = 2; // spaces
 
-    // Compute visual row/column (with tab expansion)
+    // Compute row/col with tab expansion from typed length
+    // This mirrors how monospaced text advances on '\n' and '\t'
     const { row, col } = useMemo(() => {
-        // find the current line by typedLen
-        // line i starts at lineStarts[i] and ends at nextStart or end
         let r = 0;
-        for (let i = 0; i < lineStarts.length; i++) {
-            const start = lineStarts[i];
-            const end =
-                i + 1 < lineStarts.length
-                    ? lineStarts[i + 1] - 1
-                    : codeToType.length;
-            if (typedLen >= start && typedLen <= end) {
-                r = i;
-                break;
-            }
-            if (typedLen > end) r = i + 1;
-        }
-        const lineStart = lineStarts[r] ?? 0;
-        const inLine = codeToType.slice(lineStart, typedLen);
         let c = 0;
-        for (let k = 0; k < inLine.length; k++) {
-            const ch = inLine[k];
-            if (ch === "\t") {
-                const toNextTab = tabSize - (c % tabSize);
-                c += toNextTab;
+        for (let i = 0; i < typedLen; i++) {
+            const ch = codeToType[i];
+            if (ch === "\n") {
+                r += 1;
+                c = 0;
+            } else if (ch === "\t") {
+                // Advance to the next tab stop
+                const mod = c % tabSize;
+                const advance = mod === 0 ? tabSize : tabSize - mod;
+                c += advance;
             } else {
                 c += 1;
             }
         }
         return { row: r, col: c };
-    }, [typedLen, lineStarts, codeToType, tabSize]);
+    }, [typedLen, codeToType, tabSize]);
 
-    // Build an L-shaped clip-path for the dimmed overlay layer
-    // Visible area: everything that has NOT been typed yet.
-    const clipPath = useMemo(() => {
-        const w = contentSize.w || 1;
-        const h = contentSize.h || 1;
-        const x = padding + col * charW;
-        const yTop = padding + row * lineHeight;
-        const yBot = yTop + lineHeight;
+    // Fixed editor dimensions and font metrics
+    const height = 320; // visible height
+    const padding = 16; // px
+    const fontSize = 18; // px
+    const lineHeight = 28; // px
 
-        // Clamp values to avoid invalid numbers
-        const X = Math.max(0, Math.min(x, w));
-        const YT = Math.max(0, Math.min(yTop, h));
-        const YB = Math.max(0, Math.min(yBot, h));
+    // Convert row/col into pixel coordinates
+    // - x uses `ch` so it depends on the current font metrics
+    // - y uses lineHeight and padding
+    const x = `calc(${padding}px + ${col}ch)`; // from left edge to caret
+    const yTop = `${padding + row * lineHeight}px`; // top of caret line
+    const yBot = `${padding + (row + 1) * lineHeight}px`; // bottom of caret line
 
-        // L-shaped polygon:
-        // 1) from the caret to the right on its line
-        // 2) and from below that line to the end, full width
-        // polygon(
-        //   X YT, w YT, w h, 0 h, 0 YB, X YB
-        // )
-        const pts = [
-            `${X}px ${YT}px`,
-            `${w}px ${YT}px`,
-            `${w}px ${h}px`,
-            `0px ${h}px`,
-            `0px ${YB}px`,
-            `${X}px ${YB}px`,
-        ].join(", ");
-        return `polygon(${pts})`;
-    }, [contentSize.w, contentSize.h, padding, col, charW, row, lineHeight]);
+    // L-shaped clip that leaves "untyped" region covered by the overlay
+    const clipPath = `polygon(
+    ${x} ${yTop},
+    100% ${yTop},
+    100% 100%,
+    0 100%,
+    0 ${yBot},
+    ${x} ${yBot}
+  )`;
 
-    // Keep caret visible inside the container by adjusting scroll
+    // Keep caret visible using a hidden marker + scrollIntoView
     useEffect(() => {
-        const el = scrollRef.current;
-        if (!el) return;
-        const w = el.clientWidth;
-        const h = el.clientHeight;
+        caretMarkerRef.current?.scrollIntoView({
+            block: "nearest",
+            inline: "nearest",
+        });
+    }, [row, col, value]);
 
-        const caretX = padding + col * charW;
-        const yTop = padding + row * lineHeight;
-        const yBot = yTop + lineHeight;
+    // Insert a tab character instead of blurring the textarea
+    const onKeyDown = (e) => {
+        if (e.key === "Tab") {
+            e.preventDefault();
+            const ta = e.currentTarget;
+            const start = ta.selectionStart;
+            const end = ta.selectionEnd;
+            const next = value.slice(0, start) + "\t" + value.slice(end);
+            const clamped = next.slice(0, codeToType.length);
+            setValue(clamped);
 
-        // Horizontal
-        if (caretX < el.scrollLeft + 8) {
-            el.scrollLeft = Math.max(0, caretX - 8);
-        } else if (caretX > el.scrollLeft + w - 24) {
-            el.scrollLeft = caretX - w + 24;
+            // Keep the native caret right after the inserted tab
+            // (Modern browsers often handle this fine even without rAF)
+            requestAnimationFrame(() => {
+                const pos = Math.min(start + 1, codeToType.length);
+                ta.selectionStart = ta.selectionEnd = pos;
+            });
         }
-        // Vertical
-        if (yTop < el.scrollTop + 8) {
-            el.scrollTop = Math.max(0, yTop - 8);
-        } else if (yBot > el.scrollTop + h - 8) {
-            el.scrollTop = yBot - h + 8;
-        }
-    }, [col, row, charW, lineHeight, padding, value]);
+    };
 
-    // Shared styles for pre and textarea
+    // Shared font metrics: must be identical wherever we use `ch`
     const fontFamily =
         'ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace';
-    const editorBg = "#1E1E1E"; // theme background
+    const metrics = {
+        fontFamily,
+        fontSize: `${fontSize}px`,
+        lineHeight: `${lineHeight}px`,
+        tabSize,
+        MozTabSize: tabSize,
+    };
+
+    const editorBg = "#1E1E1E";
+
+    // Styles for the <code> inside <pre> in the base layer
     const codeTagProps = {
         style: {
-            fontFamily,
-            fontSize: `${fontSize}px`,
-            lineHeight: `${lineHeight}px`,
-            whiteSpace: "pre", // NO wrap
-            tabSize,
-            MozTabSize: tabSize,
+            ...metrics,
+            whiteSpace: "pre",
         },
     };
+
     const preBaseStyle = {
         margin: 0,
         background: editorBg,
         padding: `${padding}px`,
     };
-    const preOverlayStyle = {
+
+    // Overlay text style (dark ghost text):
+    // - It renders the same string, but as plain text (no highlighting)
+    // - Black with alpha so it only darkens glyphs, not the background
+    const overlayTextPre = {
         margin: 0,
         background: "transparent",
         padding: `${padding}px`,
-        // Applies only to overlay text:
-        // makes them black, and opacity controls
-        // how "placeholder"-like they appear (0.7 ≈ 30% brightness).
-        opacity: 0.4,
-        filter: "brightness(0)",
+    };
+    const overlayTextCode = {
+        ...metrics,
+        whiteSpace: "pre",
+        color: "rgba(0, 0, 0, 0.45)", // dim "ghost" ink
     };
 
     return (
         <div className="w-full flex justify-center">
             <div
                 className="relative w-full border border-gray-700 rounded-md"
-                style={{ maxWidth: 672 }} // ~42rem
+                style={{ maxWidth: 672 }}
             >
-                {/* Scrollable container wrapping everything */}
+                {/* Scrollable container */}
                 <div
-                    ref={scrollRef}
                     className="relative overflow-auto rounded-md"
                     style={{ height, background: editorBg }}
+                    onMouseDown={() => textareaRef.current?.focus()}
                 >
-                    {/* BASE layer (100% opacity, with background) */}
+                    {/* Content wrapper sized to code width (pre uses padding) */}
                     <div
-                        ref={baseWrapRef}
-                        style={{ position: "relative", zIndex: 0 }}
+                        className="relative"
+                        style={{
+                            display: "inline-block",
+                            width: "max-content",
+                        }}
                     >
+                        {/* Base layer: vivid, syntax-highlighted code (single highlighter) */}
                         <MemoSyntax
                             language={language}
                             style={vscDarkPlus}
@@ -220,37 +159,53 @@ function CodeTyperReveal({
                         >
                             {codeToType}
                         </MemoSyntax>
-                    </div>
 
-                    {/* DIMMED OVERLAY layer (text only, same DOM, transparent background) */}
-                    <div
-                        ref={overlayClipRef}
-                        className="pointer-events-none absolute top-0 left-0"
-                        style={{
-                            width: contentSize.w || "100%",
-                            height: contentSize.h || "100%",
-                            clipPath,
-                            zIndex: 2,
-                            willChange: "clip-path",
-                        }}
-                    >
-                        <MemoSyntax
-                            language={language}
-                            style={vscDarkPlus}
-                            customStyle={preOverlayStyle}
-                            codeTagProps={codeTagProps}
-                            wrapLongLines={false}
-                            showLineNumbers={false}
+                        {/* Text overlay (plain text, no highlighting).
+               It paints semi-transparent black *only over glyph shapes*,
+               so the background is not affected.
+               We clip it with an L-shaped hole to reveal what has been typed. */}
+                        <div
+                            className="pointer-events-none absolute inset-0"
+                            style={{
+                                ...metrics,
+                                clipPath,
+                                willChange: "clip-path",
+                            }}
+                            aria-hidden
                         >
-                            {codeToType}
-                        </MemoSyntax>
+                            <pre style={overlayTextPre}>
+                                <code style={overlayTextCode}>
+                                    {codeToType}
+                                </code>
+                            </pre>
+                        </div>
+
+                        {/* Invisible caret marker used only for auto-scroll.
+               IMPORTANT: same metrics so `left: ${col}ch` aligns perfectly. */}
+                        <div
+                            ref={caretMarkerRef}
+                            aria-hidden
+                            style={{
+                                position: "absolute",
+                                ...metrics,
+                                left: x,
+                                top: yTop,
+                                width: 1,
+                                height: lineHeight,
+                                // Scroll padding so it doesn't stick to edges
+                                scrollMargin: "8px 24px 8px 8px",
+                            }}
+                        />
                     </div>
 
-                    {/* Invisible textarea to capture typing and show the caret */}
+                    {/* Invisible textarea that shows the blinking caret and captures input */}
                     <textarea
                         ref={textareaRef}
-                        value={value}
-                        onChange={(e) => setValue(e.target.value)}
+                        value={value.slice(0, codeToType.length)}
+                        onChange={(e) =>
+                            setValue(e.target.value.slice(0, codeToType.length))
+                        }
+                        onKeyDown={onKeyDown}
                         spellCheck="false"
                         autoCapitalize="none"
                         autoComplete="off"
@@ -258,41 +213,20 @@ function CodeTyperReveal({
                         className="absolute top-0 left-0 w-full h-full focus:outline-none"
                         style={{
                             background: "transparent",
-                            color: "transparent",
-                            caretColor: "#60a5fa",
-                            fontFamily,
-                            fontSize: `${fontSize}px`,
-                            lineHeight: `${lineHeight}px`,
-                            tabSize,
-                            MozTabSize: tabSize,
-                            padding: `${padding}px`,
+                            color: "transparent", // hide typed text
+                            caretColor: "#60a5fa", // keep native caret visible
                             whiteSpace: "pre",
                             resize: "none",
                             overflow: "hidden",
-                            zIndex: 3,
+                            padding: `${padding}px`,
+                            ...metrics, // caret aligns with the code thanks to same metrics
                         }}
+                        aria-label="Type to reveal the code"
                     />
                 </div>
-
-                {/* Hidden measurer for character width */}
-                <span
-                    ref={measureRef}
-                    aria-hidden
-                    style={{
-                        position: "absolute",
-                        left: -9999,
-                        top: -9999,
-                        whiteSpace: "pre",
-                        fontFamily,
-                        fontSize: `${fontSize}px`,
-                        lineHeight: `${lineHeight}px`,
-                    }}
-                >
-                    {Array.from({ length: 100 }).fill("0").join("")}
-                </span>
             </div>
         </div>
     );
 }
 
-export default CodeTyperReveal;
+export default TypingArea;
