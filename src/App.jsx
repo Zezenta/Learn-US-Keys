@@ -3,7 +3,7 @@ import Keyboard from "./components/Keyboard";
 import codeSnippets from "./code_snippets.json";
 
 function App() {
-    const snippet = codeSnippets[0]; // Select the first snippet object
+    const snippet = codeSnippets[4]; // Select the first snippet object
 
     return (
         <div className="min-h-screen bg-gray-900 text-white flex flex-col items-center justify-center">

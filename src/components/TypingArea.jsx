@@ -8,24 +8,32 @@ function TypingArea({ codeToType, language = "javascript" }) {
     const textareaRef = useRef(null);
     const caretMarkerRef = useRef(null);
 
+    // User input with literal tabs ('\t') — Backspace remains intuitive.
     const [value, setValue] = useState("");
 
-    // Clamp to source length (we never reveal past the end)
-    const typedLen = Math.min(value.length, codeToType.length);
-    const tabSize = 2; // spaces
+    // Visual tab width in columns
+    const tabSize = 4;
 
-    // Compute row/col with tab expansion from typed length
-    // This mirrors how monospaced text advances on '\n' and '\t'
+    // Render string: expand all tabs to spaces so Prism and the ghost overlay
+    // see exactly the same glyph stream (no unexpected tab rendering).
+    const renderCode = useMemo(() => {
+        const spaces = " ".repeat(tabSize);
+        return (codeToType || "").replace(/\t/g, spaces);
+    }, [codeToType, tabSize]);
+
+    // Compute caret row/col from the user's value (with tabs):
+    // - newline resets col and increases row
+    // - tab jumps to the next tab stop
+    // - any other char advances 1 col
     const { row, col } = useMemo(() => {
         let r = 0;
         let c = 0;
-        for (let i = 0; i < typedLen; i++) {
-            const ch = codeToType[i];
+        for (let i = 0; i < value.length; i++) {
+            const ch = value[i];
             if (ch === "\n") {
                 r += 1;
                 c = 0;
             } else if (ch === "\t") {
-                // Advance to the next tab stop
                 const mod = c % tabSize;
                 const advance = mod === 0 ? tabSize : tabSize - mod;
                 c += advance;
@@ -34,7 +42,7 @@ function TypingArea({ codeToType, language = "javascript" }) {
             }
         }
         return { row: r, col: c };
-    }, [typedLen, codeToType, tabSize]);
+    }, [value, tabSize]);
 
     // Fixed editor dimensions and font metrics
     const height = 320; // visible height
@@ -59,7 +67,7 @@ function TypingArea({ codeToType, language = "javascript" }) {
     ${x} ${yBot}
   )`;
 
-    // Keep caret visible using a hidden marker + scrollIntoView
+    // Keep the caret visible with a marker + scrollIntoView
     useEffect(() => {
         caretMarkerRef.current?.scrollIntoView({
             block: "nearest",
@@ -67,7 +75,8 @@ function TypingArea({ codeToType, language = "javascript" }) {
         });
     }, [row, col, value]);
 
-    // Insert a tab character instead of blurring the textarea
+    // Handle Tab as a single logical char: insert '\t' (not spaces).
+    // Backspace will remove it as one key press — intuitive UX.
     const onKeyDown = (e) => {
         if (e.key === "Tab") {
             e.preventDefault();
@@ -75,13 +84,10 @@ function TypingArea({ codeToType, language = "javascript" }) {
             const start = ta.selectionStart;
             const end = ta.selectionEnd;
             const next = value.slice(0, start) + "\t" + value.slice(end);
-            const clamped = next.slice(0, codeToType.length);
-            setValue(clamped);
-
-            // Keep the native caret right after the inserted tab
-            // (Modern browsers often handle this fine even without rAF)
+            setValue(next);
+            // Place caret after the inserted tab
             requestAnimationFrame(() => {
-                const pos = Math.min(start + 1, codeToType.length);
+                const pos = start + 1;
                 ta.selectionStart = ta.selectionEnd = pos;
             });
         }
@@ -96,6 +102,7 @@ function TypingArea({ codeToType, language = "javascript" }) {
         lineHeight: `${lineHeight}px`,
         tabSize,
         MozTabSize: tabSize,
+        fontVariantLigatures: "none", // avoid width variations
     };
 
     const editorBg = "#1E1E1E";
@@ -157,7 +164,7 @@ function TypingArea({ codeToType, language = "javascript" }) {
                             wrapLongLines={false}
                             showLineNumbers={false}
                         >
-                            {codeToType}
+                            {renderCode}
                         </MemoSyntax>
 
                         {/* Text overlay (plain text, no highlighting).
@@ -175,13 +182,12 @@ function TypingArea({ codeToType, language = "javascript" }) {
                         >
                             <pre style={overlayTextPre}>
                                 <code style={overlayTextCode}>
-                                    {codeToType}
+                                    {renderCode}
                                 </code>
                             </pre>
                         </div>
 
-                        {/* Invisible caret marker used only for auto-scroll.
-               IMPORTANT: same metrics so `left: ${col}ch` aligns perfectly. */}
+                        {/* Invisible caret marker used only for auto-scroll */}
                         <div
                             ref={caretMarkerRef}
                             aria-hidden
@@ -192,7 +198,6 @@ function TypingArea({ codeToType, language = "javascript" }) {
                                 top: yTop,
                                 width: 1,
                                 height: lineHeight,
-                                // Scroll padding so it doesn't stick to edges
                                 scrollMargin: "8px 24px 8px 8px",
                             }}
                         />
@@ -201,10 +206,8 @@ function TypingArea({ codeToType, language = "javascript" }) {
                     {/* Invisible textarea that shows the blinking caret and captures input */}
                     <textarea
                         ref={textareaRef}
-                        value={value.slice(0, codeToType.length)}
-                        onChange={(e) =>
-                            setValue(e.target.value.slice(0, codeToType.length))
-                        }
+                        value={value}
+                        onChange={(e) => setValue(e.target.value)}
                         onKeyDown={onKeyDown}
                         spellCheck="false"
                         autoCapitalize="none"

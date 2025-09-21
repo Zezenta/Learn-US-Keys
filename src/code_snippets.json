@@ -1,22 +1,22 @@
 [
     {
         "language": "javascript",
-        "code": "const greet = (name) => {\n  const message = `Hello, ${name}!`;\n  console.log(message.split(' ')[0]); // Outputs \"Hello,\"\n};\ngreet('World');"
+        "code": "const greet = (name) => {\n\tconst message = `Hello, ${name}!`;\n\tconsole.log(message.split(' ')[0]); // Outputs \"Hello,\"\n};\ngreet('World');"
     },
     {
         "language": "python",
-        "code": "def filter_numbers(nums: list[int]) -> list[int]:\n    # Filter out numbers > 5 and return a new list\n    return [n for n in nums if n <= 5 and n % 2 == 0]"
+        "code": "def filter_numbers(nums: list[int]) -> list[int]:\n\t# Filter out numbers > 5 and return a new list\n\treturn [n for n in nums if n <= 5 and n % 2 == 0]"
     },
     {
         "language": "c",
-        "code": "#include <stdio.h>\n\nint main() {\n    int arr[] = {1, 2, 3, 4, 5};\n    int* ptr = arr;\n    printf(\"Value: %d\", *(ptr + 2)); // Should be 3\n    return 0;\n}"
+        "code": "#include <stdio.h>\n\nint main() {\n\tint arr[] = {1, 2, 3, 4, 5};\n\tint* ptr = arr;\n\tprintf(\"Value: %d\", *(ptr + 2)); // Should be 3\n\treturn 0;\n}"
     },
     {
         "language": "cpp",
-        "code": "#include <iostream>\n#include <vector>\n\nint main() {\n    std::vector<int> nums = {10, 20, 30};\n    for (int& num : nums) {\n        num += 5; // Add 5 to each element\n    }\n    std::cout << nums[0] << std::endl; // 15\n}"
+        "code": "#include <iostream>\n#include <vector>\n\nint main() {\n\tstd::vector<int> nums = {10, 20, 30};\n\tfor (int& num : nums) {\n\t\tnum += 5; // Add 5 to each element\n\t}\n\tstd::cout << nums[0] << std::endl; // 15\n}"
     },
     {
         "language": "rust",
-        "code": "fn main() {\n    let data = vec![1, 2, 3];\n    let mut data_iter = data.iter().map(|x| x + 1);\n    assert_eq!(data_iter.next(), Some(2));\n}"
+        "code": "fn main() {\n\tlet data = vec![1, 2, 3];\n\tlet mut data_iter = data.iter().map(|x| x + 1);\n\tassert_eq!(data_iter.next(), Some(2));\n}"
     }
 ]
