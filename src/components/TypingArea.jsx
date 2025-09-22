@@ -4,79 +4,139 @@ import { vscDarkPlus } from "react-syntax-highlighter/dist/esm/styles/prism";
 
 const MemoSyntax = React.memo(SyntaxHighlighter);
 
+// --- Small Utils ---
+const expandTabs = (s, size) => (s || "").replace(/\t/g, " ".repeat(size));
+const rowColFromPrefixLen = (text, len) => {
+    let r = 0;
+    let c = 0;
+    for (let i = 0; i < len; i++) {
+        const ch = text[i];
+        if (ch === "\n") {
+            r += 1;
+            c = 0;
+        } else {
+            c += 1;
+        }
+    }
+    return { row: r, col: c };
+};
+
+// --- Static Configuration ---
+const tabSize = 4;
+const height = 320; // visible height
+const padding = 16; // px
+const fontSize = 18; // px
+const lineHeight = 28; // px
+const editorBg = "#1E1E1E";
+
+// --- Static Styles & Style Helpers ---
+const fontFamily =
+    'ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace';
+const metrics = {
+    fontFamily,
+    fontSize: `${fontSize}px`,
+    lineHeight: `${lineHeight}px`,
+    tabSize,
+    MozTabSize: tabSize,
+    fontVariantLigatures: "none", // avoid width variations
+};
+const codeTagProps = {
+    style: { ...metrics, whiteSpace: "pre" },
+};
+const preBaseStyle = {
+    margin: 0,
+    background: editorBg,
+    padding: `${padding}px`,
+};
+const overlayTextPre = {
+    margin: 0,
+    background: "transparent",
+    padding: `${padding}px`,
+};
+const overlayTextCode = {
+    ...metrics,
+    whiteSpace: "pre",
+    color: "rgba(0, 0, 0, 0.45)", // dim "ghost" ink
+};
+const errorCharStyle = {
+    color: "#fff",
+    backgroundColor: "rgba(239, 68, 68, 0.9)", // red-500-ish
+    borderRadius: 2,
+};
+
 function TypingArea({ codeToType, language = "javascript" }) {
+    // --- Refs and State ---
     const textareaRef = useRef(null);
     const caretMarkerRef = useRef(null);
+    const [value, setValue] = useState(""); // User input keeps literal tabs
 
-    // User input with literal tabs ('\t') — Backspace remains intuitive.
-    const [value, setValue] = useState("");
+    // --- Memoized Calculations ---
+    const renderCode = useMemo(
+        () => expandTabs(codeToType, tabSize),
+        [codeToType]
+    );
+    const renderValue = useMemo(() => expandTabs(value, tabSize), [value]);
 
-    // Visual tab width in columns
-    const tabSize = 4;
+    // Checks where the first mismatch is (or -1 if all match)
+    const firstMismatch = useMemo(() => {
+        const a = renderValue;
+        const b = renderCode;
+        const n = Math.max(a.length, b.length);
+        for (let i = 0; i < n; i++) {
+            if (a[i] !== b[i]) return i;
+        }
+        return -1;
+    }, [renderValue, renderCode]);
 
-    // Render string: expand all tabs to spaces so Prism and the ghost overlay
-    // see exactly the same glyph stream (no unexpected tab rendering).
-    const renderCode = useMemo(() => {
-        const spaces = " ".repeat(tabSize);
-        return (codeToType || "").replace(/\t/g, spaces);
-    }, [codeToType, tabSize]);
+    const holeLen = useMemo(() => {
+        if (firstMismatch >= 0) return firstMismatch;
+        return Math.min(renderValue.length, renderCode.length);
+    }, [firstMismatch, renderValue.length, renderCode.length]);
 
-    // Compute caret row/col from the user's value (with tabs):
-    // - newline resets col and increases row
-    // - tab jumps to the next tab stop
-    // - any other char advances 1 col
-    const { row, col } = useMemo(() => {
-        let r = 0;
-        let c = 0;
-        for (let i = 0; i < value.length; i++) {
-            const ch = value[i];
+    const caretLen = renderValue.length;
+
+    const { row: holeRow, col: holeCol } = useMemo(
+        () => rowColFromPrefixLen(renderValue, holeLen),
+        [renderValue, holeLen]
+    );
+    const { row: caretRow, col: caretCol } = useMemo(
+        () => rowColFromPrefixLen(renderValue, caretLen),
+        [renderValue, caretLen]
+    );
+
+    const errorContent = useMemo(() => {
+        if (firstMismatch < 0) return null;
+
+        const nodes = [];
+        const prefix = renderValue.slice(0, firstMismatch); // invisible via color: transparent
+        if (prefix) nodes.push(prefix);
+
+        // From mismatch to user's caret (so it follows the caret)
+        for (let i = firstMismatch; i < renderValue.length; i++) {
+            const ch = renderValue[i];
             if (ch === "\n") {
-                r += 1;
-                c = 0;
-            } else if (ch === "\t") {
-                const mod = c % tabSize;
-                const advance = mod === 0 ? tabSize : tabSize - mod;
-                c += advance;
+                // Real newline so the overlay follows lines correctly
+                nodes.push("\n");
             } else {
-                c += 1;
+                nodes.push(
+                    <span key={`e-${i}`} style={errorCharStyle}>
+                        {ch}
+                    </span>
+                );
             }
         }
-        return { row: r, col: c };
-    }, [value, tabSize]);
+        return nodes;
+    }, [firstMismatch, renderValue]);
 
-    // Fixed editor dimensions and font metrics
-    const height = 320; // visible height
-    const padding = 16; // px
-    const fontSize = 18; // px
-    const lineHeight = 28; // px
-
-    // Convert row/col into pixel coordinates
-    // - x uses `ch` so it depends on the current font metrics
-    // - y uses lineHeight and padding
-    const x = `calc(${padding}px + ${col}ch)`; // from left edge to caret
-    const yTop = `${padding + row * lineHeight}px`; // top of caret line
-    const yBot = `${padding + (row + 1) * lineHeight}px`; // bottom of caret line
-
-    // L-shaped clip that leaves "untyped" region covered by the overlay
-    const clipPath = `polygon(
-    ${x} ${yTop},
-    100% ${yTop},
-    100% 100%,
-    0 100%,
-    0 ${yBot},
-    ${x} ${yBot}
-  )`;
-
-    // Keep the caret visible with a marker + scrollIntoView
+    // --- Side Effects ---
     useEffect(() => {
         caretMarkerRef.current?.scrollIntoView({
             block: "nearest",
             inline: "nearest",
         });
-    }, [row, col, value]);
+    }, [caretRow, caretCol, value]);
 
-    // Handle Tab as a single logical char: insert '\t' (not spaces).
-    // Backspace will remove it as one key press — intuitive UX.
+    // --- Event Handlers ---
     const onKeyDown = (e) => {
         if (e.key === "Tab") {
             e.preventDefault();
@@ -93,47 +153,23 @@ function TypingArea({ codeToType, language = "javascript" }) {
         }
     };
 
-    // Shared font metrics: must be identical wherever we use `ch`
-    const fontFamily =
-        'ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace';
-    const metrics = {
-        fontFamily,
-        fontSize: `${fontSize}px`,
-        lineHeight: `${lineHeight}px`,
-        tabSize,
-        MozTabSize: tabSize,
-        fontVariantLigatures: "none", // avoid width variations
-    };
+    // --- Dynamic Styles & Coordinates ---
+    const xHole = `calc(${padding}px + ${holeCol}ch)`;
+    const yHoleTop = `${padding + holeRow * lineHeight}px`;
+    const yHoleBot = `${padding + (holeRow + 1) * lineHeight}px`;
 
-    const editorBg = "#1E1E1E";
+    const xCaret = `calc(${padding}px + ${caretCol}ch)`;
+    const yCaretTop = `${padding + caretRow * lineHeight}px`;
 
-    // Styles for the <code> inside <pre> in the base layer
-    const codeTagProps = {
-        style: {
-            ...metrics,
-            whiteSpace: "pre",
-        },
-    };
-
-    const preBaseStyle = {
-        margin: 0,
-        background: editorBg,
-        padding: `${padding}px`,
-    };
-
-    // Overlay text style (dark ghost text):
-    // - It renders the same string, but as plain text (no highlighting)
-    // - Black with alpha so it only darkens glyphs, not the background
-    const overlayTextPre = {
-        margin: 0,
-        background: "transparent",
-        padding: `${padding}px`,
-    };
-    const overlayTextCode = {
-        ...metrics,
-        whiteSpace: "pre",
-        color: "rgba(0, 0, 0, 0.45)", // dim "ghost" ink
-    };
+    // L-shaped clip that keeps "untyped" region dimmed
+    const clipPath = `polygon(
+    ${xHole} ${yHoleTop},
+    100% ${yHoleTop},
+    100% 100%,
+    0 100%,
+    0 ${yHoleBot},
+    ${xHole} ${yHoleBot}
+  )`;
 
     return (
         <div className="w-full flex justify-center">
@@ -167,16 +203,14 @@ function TypingArea({ codeToType, language = "javascript" }) {
                             {renderCode}
                         </MemoSyntax>
 
-                        {/* Text overlay (plain text, no highlighting).
-               It paints semi-transparent black *only over glyph shapes*,
-               so the background is not affected.
-               We clip it with an L-shaped hole to reveal what has been typed. */}
+                        {/* Un-typed dim overlay (ghost text) clipped with L hole */}
                         <div
                             className="pointer-events-none absolute inset-0"
                             style={{
                                 ...metrics,
                                 clipPath,
                                 willChange: "clip-path",
+                                zIndex: 1,
                             }}
                             aria-hidden
                         >
@@ -187,18 +221,43 @@ function TypingArea({ codeToType, language = "javascript" }) {
                             </pre>
                         </div>
 
-                        {/* Invisible caret marker used only for auto-scroll */}
+                        {/* Error overlay: from first mismatch to caret (cascade). 
+               Prefix is invisible (color: transparent) to keep geometry. */}
+                        <div
+                            className="pointer-events-none absolute inset-0"
+                            style={{
+                                ...metrics,
+                                whiteSpace: "pre",
+                                zIndex: 2,
+                            }}
+                            aria-hidden
+                        >
+                            <pre style={overlayTextPre}>
+                                <code
+                                    style={{
+                                        ...metrics,
+                                        whiteSpace: "pre",
+                                        color: "transparent", // hide matched prefix
+                                    }}
+                                >
+                                    {errorContent}
+                                </code>
+                            </pre>
+                        </div>
+
+                        {/* Invisible caret marker used only for auto-scroll (follows real caret) */}
                         <div
                             ref={caretMarkerRef}
                             aria-hidden
                             style={{
                                 position: "absolute",
                                 ...metrics,
-                                left: x,
-                                top: yTop,
+                                left: xCaret,
+                                top: yCaretTop,
                                 width: 1,
                                 height: lineHeight,
                                 scrollMargin: "8px 24px 8px 8px",
+                                zIndex: 0,
                             }}
                         />
                     </div>
@@ -223,6 +282,7 @@ function TypingArea({ codeToType, language = "javascript" }) {
                             overflow: "hidden",
                             padding: `${padding}px`,
                             ...metrics, // caret aligns with the code thanks to same metrics
+                            zIndex: 3,
                         }}
                         aria-label="Type to reveal the code"
                     />
