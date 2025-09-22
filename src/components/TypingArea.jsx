@@ -138,6 +138,7 @@ function TypingArea({ codeToType, language = "javascript" }) {
 
     // --- Event Handlers ---
     const onKeyDown = (e) => {
+        // 1) Insert a real tab character (atomic for Backspace)
         if (e.key === "Tab") {
             e.preventDefault();
             const ta = e.currentTarget;
@@ -150,6 +151,133 @@ function TypingArea({ codeToType, language = "javascript" }) {
                 const pos = start + 1;
                 ta.selectionStart = ta.selectionEnd = pos;
             });
+            return;
+        }
+
+        // Helper: compute line boundaries and indentation
+        const getLineInfo = (pos) => {
+            const lineStart = value.lastIndexOf("\n", pos - 1) + 1;
+            const nextNl = value.indexOf("\n", pos);
+            const lineEnd = nextNl === -1 ? value.length : nextNl;
+            const before = value.slice(lineStart, pos);
+            const after = value.slice(pos, lineEnd);
+            const indent = (before.match(/^[\t ]*/) || [""])[0];
+
+            // Determine the unit to use for one indent level
+            // Prefer tabs if the line has tabs, otherwise spaces
+            const indentUnit = indent.includes("\t")
+                ? "\t"
+                : " ".repeat(tabSize);
+
+            // Last non-whitespace char before the caret within the line
+            let k = before.length - 1;
+            while (k >= 0 && (before[k] === " " || before[k] === "\t")) k--;
+            const prevChar = k >= 0 ? before[k] : null;
+
+            // First non-whitespace char after the caret within the line
+            let m = 0;
+            while (m < after.length && (after[m] === " " || after[m] === "\t"))
+                m++;
+            const nextChar = m < after.length ? after[m] : null;
+
+            return {
+                lineStart,
+                lineEnd,
+                before,
+                after,
+                indent,
+                indentUnit,
+                prevChar,
+                nextChar,
+            };
+        };
+
+        // 2) Smart Enter: keep indentation; if after '{' add one level;
+        //    if the next non-ws is '}', do the common "brace split" layout.
+        if (e.key === "Enter") {
+            e.preventDefault();
+            const ta = e.currentTarget;
+            const start = ta.selectionStart;
+            const end = ta.selectionEnd;
+            const baseBefore = value.slice(0, start);
+            const baseAfter = value.slice(end);
+
+            const info = getLineInfo(start);
+            let insertText = "\n" + info.indent;
+            let caretDelta = insertText.length;
+
+            if (info.prevChar === "{") {
+                // Brace split if the closing brace is next (typical editor behavior)
+                if (info.nextChar === "}") {
+                    insertText =
+                        "\n" +
+                        info.indent +
+                        info.indentUnit +
+                        "\n" +
+                        info.indent;
+                    // Caret placed on the inner indented line
+                    caretDelta =
+                        1 + info.indent.length + info.indentUnit.length;
+                } else {
+                    insertText = "\n" + info.indent + info.indentUnit;
+                    caretDelta = insertText.length;
+                }
+            }
+
+            const newValue = baseBefore + insertText + baseAfter;
+            setValue(newValue);
+            requestAnimationFrame(() => {
+                const pos = start + caretDelta;
+                ta.selectionStart = ta.selectionEnd = pos;
+            });
+            return;
+        }
+
+        // 3) Smart outdent on '}' at the start indentation of the line:
+        //    if caret is within the indentation, remove one indent level
+        //    and then insert '}' at the new indentation column.
+        if (e.key === "}") {
+            const ta = e.currentTarget;
+            const start = ta.selectionStart;
+            const end = ta.selectionEnd;
+            if (start !== end) return; // let default handle selections
+
+            const info = getLineInfo(start);
+            const caretInIndent = start - info.lineStart <= info.indent.length;
+
+            if (caretInIndent && info.indent.length > 0) {
+                e.preventDefault();
+
+                // Remove one indent level (tab or tabSize spaces)
+                let newIndent = info.indent;
+                if (newIndent.endsWith("\t")) {
+                    newIndent = newIndent.slice(0, -1);
+                } else if (newIndent.endsWith(" ".repeat(tabSize))) {
+                    newIndent = newIndent.slice(0, -tabSize);
+                } else {
+                    // Fallback: remove up to tabSize trailing spaces
+                    const m = newIndent.match(/ +$/);
+                    if (m) {
+                        const count = m[0].length;
+                        const rm = Math.min(tabSize, count);
+                        newIndent = newIndent.slice(0, newIndent.length - rm);
+                    }
+                }
+
+                const beforeLine = value.slice(0, info.lineStart);
+                const afterIndent = value.slice(
+                    info.lineStart + info.indent.length
+                );
+
+                const updated = beforeLine + newIndent + "}" + afterIndent;
+                setValue(updated);
+                requestAnimationFrame(() => {
+                    const pos = beforeLine.length + newIndent.length + 1; // after '}'
+                    ta.selectionStart = ta.selectionEnd = pos;
+                });
+                return;
+            }
+            // Otherwise, let the browser insert '}' normally
         }
     };
 
@@ -173,10 +301,7 @@ function TypingArea({ codeToType, language = "javascript" }) {
 
     return (
         <div className="w-full flex justify-center">
-            <div
-                className="relative w-full border border-gray-700 rounded-md"
-                style={{ maxWidth: 672 }}
-            >
+            <div className="relative w-full border border-gray-700 rounded-md max-w-lg sm:max-w-xl md:max-w-2xl lg:max-w-3xl xl:max-w-4xl">
                 {/* Scrollable container */}
                 <div
                     className="relative overflow-auto rounded-md"
@@ -221,8 +346,8 @@ function TypingArea({ codeToType, language = "javascript" }) {
                             </pre>
                         </div>
 
-                        {/* Error overlay: from first mismatch to caret (cascade). 
-               Prefix is invisible (color: transparent) to keep geometry. */}
+                        {/* Error overlay: from first mismatch to caret (cascade).
+                Prefix is invisible (color: transparent) to keep geometry. */}
                         <div
                             className="pointer-events-none absolute inset-0"
                             style={{
