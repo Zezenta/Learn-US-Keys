@@ -64,11 +64,46 @@ const errorCharStyle = {
     borderRadius: 2,
 };
 
-function TypingArea({ codeToType, language = "javascript" }) {
+function TypingArea({
+    codeToType,
+    language = "javascript",
+    onStatsChange,
+    onComplete,
+}) {
     // --- Refs and State ---
     const textareaRef = useRef(null);
     const caretMarkerRef = useRef(null);
     const [value, setValue] = useState(""); // User input keeps literal tabs
+
+    // timing refs
+    const startedAtRef = useRef(null);
+    const finishedAtRef = useRef(null);
+    const [finished, setFinished] = useState(false);
+
+    // Reset when snippet changes
+    useEffect(() => {
+        setValue("");
+        startedAtRef.current = null;
+        finishedAtRef.current = null;
+        setFinished(false);
+        onStatsChange?.({
+            wpm: 0,
+            accuracy: 100,
+            grossWpm: 0,
+            netWpm: 0,
+            elapsedMs: 0,
+            correct: 0,
+            typed: 0,
+            finished: false,
+        });
+    }, [codeToType, onStatsChange]);
+
+    // Start timer on first keystroke
+    useEffect(() => {
+        if (value.length > 0 && !startedAtRef.current) {
+            startedAtRef.current = performance.now();
+        }
+    }, [value.length]);
 
     // --- Memoized Calculations ---
     const renderCode = useMemo(
@@ -128,6 +163,49 @@ function TypingArea({ codeToType, language = "javascript" }) {
         return nodes;
     }, [firstMismatch, renderValue]);
 
+    // Determine completion: everything typed and no mismatches
+    const isComplete =
+        firstMismatch === -1 && renderValue.length >= renderCode.length;
+
+    useEffect(() => {
+        if (!finished && isComplete) {
+            finishedAtRef.current = performance.now();
+            setFinished(true);
+        }
+    }, [isComplete, finished]);
+
+    // --- Emit stats on every change (average from start to now/finish) ---
+    useEffect(() => {
+        if (!startedAtRef.current) return;
+
+        const endMs = finished
+            ? finishedAtRef.current || performance.now()
+            : performance.now();
+        const elapsedMs = Math.max(endMs - startedAtRef.current, 1);
+        const minutes = elapsedMs / 60000;
+
+        const typed = caretLen; // expanded glyphs typed
+        const correct = holeLen; // correct prefix only (TypeRacer style)
+
+        const accuracy = typed > 0 ? (correct / typed) * 100 : 100;
+        const grossWpm = typed > 0 ? typed / 5 / minutes : 0;
+        const netWpm = correct > 0 ? correct / 5 / minutes : 0;
+
+        const stats = {
+            wpm: netWpm,
+            accuracy,
+            grossWpm,
+            netWpm,
+            elapsedMs,
+            correct,
+            typed,
+            finished,
+        };
+
+        onStatsChange?.(stats);
+        if (finished) onComplete?.(stats);
+    }, [caretLen, holeLen, finished, onStatsChange, onComplete]);
+
     // --- Side Effects ---
     useEffect(() => {
         caretMarkerRef.current?.scrollIntoView({
@@ -136,7 +214,7 @@ function TypingArea({ codeToType, language = "javascript" }) {
         });
     }, [caretRow, caretCol, value]);
 
-    // --- Event Handlers ---
+    // --- Event Handlers (Tab, Smart Enter, Smart '}' outdent) ---
     const onKeyDown = (e) => {
         // 1) Insert a real tab character (atomic for Backspace)
         if (e.key === "Tab") {

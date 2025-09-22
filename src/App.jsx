@@ -1,15 +1,41 @@
+import React, { useState } from "react";
 import TypingArea from "./components/TypingArea";
 import Keyboard from "./components/Keyboard";
+import Stats from "./components/Stats";
 import codeSnippets from "./code_snippets.json";
 
 function App() {
-    const snippet = codeSnippets[4]; // Select the first snippet object
+    const snippet = codeSnippets[3];
+
+    const [stats, setStats] = useState({
+        wpm: 0,
+        accuracy: 100,
+        grossWpm: 0,
+        netWpm: 0,
+        elapsedMs: 0,
+        correct: 0,
+        typed: 0,
+        finished: false,
+    });
 
     return (
         <div className="min-h-screen bg-gray-900 text-white flex flex-col items-center justify-center">
-            <h1 className="text-4xl font-bold mb-8">Learn US Keys</h1>
-            <TypingArea codeToType={snippet.code} language={snippet.language} />
-            <Keyboard />
+            <h1 className="text-4xl font-bold mb-4 font-mono">nerdracer</h1>
+
+            <TypingArea
+                codeToType={snippet.code}
+                language={snippet.language}
+                onStatsChange={setStats}
+                onComplete={(finalStats) => {
+                    // choose what to do when finished
+                    console.log("Finished:", finalStats);
+                }}
+            />
+
+            <Stats
+                wpm={Math.round(stats.wpm)}
+                accuracy={Math.round(stats.accuracy)}
+            />
         </div>
     );
 }
