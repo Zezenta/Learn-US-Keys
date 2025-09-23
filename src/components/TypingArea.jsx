@@ -5,8 +5,9 @@ import { vscDarkPlus } from "react-syntax-highlighter/dist/esm/styles/prism";
 const MemoSyntax = React.memo(SyntaxHighlighter);
 
 // --- Small Utils ---
-const expandTabs = (s, size) => (s || "").replace(/\t/g, " ".repeat(size));
+const expandTabs = (s, size) => (s || "").replace(/\t/g, " ".repeat(size)); // Replaces tabs with spaces
 const rowColFromPrefixLen = (text, len) => {
+    // Given a text and a prefix length, returns (row, col)
     let r = 0;
     let c = 0;
     for (let i = 0; i < len; i++) {
@@ -22,7 +23,7 @@ const rowColFromPrefixLen = (text, len) => {
 };
 
 // --- Static Configuration ---
-const tabSize = 4;
+const tabSize = 4; // option to change later
 const height = 320; // visible height
 const padding = 16; // px
 const fontSize = 18; // px
@@ -80,59 +81,40 @@ function TypingArea({
     const finishedAtRef = useRef(null);
     const [finished, setFinished] = useState(false);
 
-    // Reset when snippet changes
-    useEffect(() => {
-        setValue("");
-        startedAtRef.current = null;
-        finishedAtRef.current = null;
-        setFinished(false);
-        onStatsChange?.({
-            wpm: 0,
-            accuracy: 100,
-            grossWpm: 0,
-            netWpm: 0,
-            elapsedMs: 0,
-            correct: 0,
-            typed: 0,
-            finished: false,
-        });
-    }, [codeToType, onStatsChange]);
-
-    // Start timer on first keystroke
-    useEffect(() => {
-        if (value.length > 0 && !startedAtRef.current) {
-            startedAtRef.current = performance.now();
-        }
-    }, [value.length]);
-
     // --- Memoized Calculations ---
     const renderCode = useMemo(
         () => expandTabs(codeToType, tabSize),
         [codeToType]
     );
+
     const renderValue = useMemo(() => expandTabs(value, tabSize), [value]);
 
     // Checks where the first mismatch is (or -1 if all match)
+    // Returns the index of the first differing character
     const firstMismatch = useMemo(() => {
-        const a = renderValue;
-        const b = renderCode;
-        const n = Math.max(a.length, b.length);
-        for (let i = 0; i < n; i++) {
-            if (a[i] !== b[i]) return i;
+        for (
+            let i = 0;
+            i < Math.max(renderValue.length, renderCode.length);
+            i++
+        ) {
+            if (renderValue[i] !== renderCode[i]) return i;
         }
         return -1;
     }, [renderValue, renderCode]);
 
-    const holeLen = useMemo(() => {
+    // Length of the correct prefix (up to first mismatch, or full length if all match)
+    // Returns how many characters are correct from the start
+    const correctPrefixLen = useMemo(() => {
         if (firstMismatch >= 0) return firstMismatch;
         return Math.min(renderValue.length, renderCode.length);
-    }, [firstMismatch, renderValue.length, renderCode.length]);
+    }, [firstMismatch]);
 
     const caretLen = renderValue.length;
 
-    const { row: holeRow, col: holeCol } = useMemo(
-        () => rowColFromPrefixLen(renderValue, holeLen),
-        [renderValue, holeLen]
+    // Coordinates of correct prefix end & caret (row, col)
+    const { row: correctPrefixRow, col: correctPrefixCol } = useMemo(
+        () => rowColFromPrefixLen(renderValue, correctPrefixLen),
+        [renderValue, correctPrefixLen]
     );
     const { row: caretRow, col: caretCol } = useMemo(
         () => rowColFromPrefixLen(renderValue, caretLen),
@@ -141,16 +123,12 @@ function TypingArea({
 
     const errorContent = useMemo(() => {
         if (firstMismatch < 0) return null;
-
         const nodes = [];
-        const prefix = renderValue.slice(0, firstMismatch); // invisible via color: transparent
+        const prefix = renderValue.slice(0, firstMismatch);
         if (prefix) nodes.push(prefix);
-
-        // From mismatch to user's caret (so it follows the caret)
         for (let i = firstMismatch; i < renderValue.length; i++) {
             const ch = renderValue[i];
             if (ch === "\n") {
-                // Real newline so the overlay follows lines correctly
                 nodes.push("\n");
             } else {
                 nodes.push(
@@ -163,50 +141,127 @@ function TypingArea({
         return nodes;
     }, [firstMismatch, renderValue]);
 
-    // Determine completion: everything typed and no mismatches
-    const isComplete =
-        firstMismatch === -1 && renderValue.length >= renderCode.length;
+    // --- Stats: ticker + refs (report every 1s) ---
+    const tickerIdRef = useRef(null);
+    const typedRef = useRef(0);
+    const correctRef = useRef(0);
+    const onStatsChangeRef = useRef(onStatsChange);
+    const keyCountsRef = useRef([0, 0]); // accuracy accumulated [correctKeys, wrongKeys]
 
-    useEffect(() => {
-        if (!finished && isComplete) {
-            finishedAtRef.current = performance.now();
-            setFinished(true);
+    // sync refs in each render (cheap and doesn't re render)
+    onStatsChangeRef.current = onStatsChange;
+    typedRef.current = caretLen;
+    correctRef.current = correctPrefixLen;
+
+    // Calculates accuracy based on accumulated keystrokes
+    const computeAccuracyFromKeys = () => {
+        const [correctKeys, wrongKeys] = keyCountsRef.current;
+        const totalKeys = correctKeys + wrongKeys;
+        return totalKeys > 0 ? (correctKeys / totalKeys) * 100 : 100;
+    };
+
+    // Start ticker
+    const startTicker = () => {
+        if (tickerIdRef.current != null) return; // already running
+        if (!startedAtRef.current) return; // not started yet
+
+        tickerIdRef.current = window.setInterval(() => {
+            const elapsedMs = Math.max(
+                performance.now() - startedAtRef.current,
+                1
+            );
+            const minutes = elapsedMs / 60000;
+
+            const typed = typedRef.current;
+            const correct = correctRef.current;
+
+            const accuracy = computeAccuracyFromKeys();
+            const grossWpm = typed > 0 ? typed / 5 / minutes : 0;
+            const netWpm = correct > 0 ? correct / 5 / minutes : 0;
+
+            onStatsChangeRef.current?.({
+                wpm: netWpm,
+                accuracy,
+                grossWpm,
+                netWpm,
+                elapsedMs,
+                correct,
+                typed,
+                finished: false,
+            });
+        }, 1000);
+    };
+
+    // Stop ticker
+    const stopTicker = () => {
+        if (tickerIdRef.current != null) {
+            clearInterval(tickerIdRef.current);
+            tickerIdRef.current = null;
         }
-    }, [isComplete, finished]);
+    };
 
-    // --- Emit stats on every change (average from start to now/finish) ---
+    // Cleanup ticker on unmount
     useEffect(() => {
-        if (!startedAtRef.current) return;
+        return () => stopTicker();
+    }, []);
 
-        const endMs = finished
-            ? finishedAtRef.current || performance.now()
-            : performance.now();
-        const elapsedMs = Math.max(endMs - startedAtRef.current, 1);
-        const minutes = elapsedMs / 60000;
+    // --- Accuracy accumulation ---
+    const accumulateKeypresses = (prevExpanded, nextExpanded) => {
+        const prevLen = prevExpanded.length;
+        const nextLen = nextExpanded.length;
 
-        const typed = caretLen; // expanded glyphs typed
-        const correct = holeLen; // correct prefix only (TypeRacer style)
+        // Only count added characters. Deletions/edits do not count.
+        if (nextLen > prevLen) {
+            let [correct, wrong] = keyCountsRef.current;
+            for (let i = prevLen; i < nextLen; i++) {
+                const typedCh = nextExpanded[i];
+                const targetCh = renderCode[i];
+                if (typedCh === targetCh) correct += 1;
+                else wrong += 1;
+            }
+            keyCountsRef.current = [correct, wrong];
+        }
+    };
 
-        const accuracy = typed > 0 ? (correct / typed) * 100 : 100;
-        const grossWpm = typed > 0 ? typed / 5 / minutes : 0;
-        const netWpm = correct > 0 ? correct / 5 / minutes : 0;
+    const checkCompletionAndFinish = (newValue) => {
+        const newRenderValue = expandTabs(newValue, tabSize);
+        if (renderCode.length > 0 && newRenderValue === renderCode) {
+            const finishTime = performance.now();
+            finishedAtRef.current = finishTime;
+            setFinished(true);
 
-        const stats = {
-            wpm: netWpm,
-            accuracy,
-            grossWpm,
-            netWpm,
-            elapsedMs,
-            correct,
-            typed,
-            finished,
-        };
+            // Stop ticker and send final stats
+            stopTicker();
 
-        onStatsChange?.(stats);
-        if (finished) onComplete?.(stats);
-    }, [caretLen, holeLen, finished, onStatsChange, onComplete]);
+            const elapsedMs = Math.max(finishTime - startedAtRef.current, 1);
+            const minutes = elapsedMs / 60000;
+            const typed = newRenderValue.length;
+            const correct = typed; // we know all are correct if completed
+            const grossWpm = typed > 0 ? typed / 5 / minutes : 0;
+            const netWpm = grossWpm;
 
-    // --- Side Effects ---
+            // accuracy from accumulated keys
+            const [correctKeys, wrongKeys] = keyCountsRef.current;
+            const totalKeys = correctKeys + wrongKeys;
+            const accuracy =
+                totalKeys > 0 ? (correctKeys / totalKeys) * 100 : 100;
+
+            const finalStats = {
+                wpm: netWpm,
+                accuracy,
+                grossWpm,
+                netWpm,
+                elapsedMs,
+                correct,
+                typed,
+                finished: true,
+            };
+            onStatsChange?.(finalStats);
+            onComplete?.(finalStats);
+        }
+    };
+
+    // Scroll caret into view on changes
     useEffect(() => {
         caretMarkerRef.current?.scrollIntoView({
             block: "nearest",
@@ -214,8 +269,39 @@ function TypingArea({
         });
     }, [caretRow, caretCol, value]);
 
-    // --- Event Handlers (Tab, Smart Enter, Smart '}' outdent) ---
+    // Handle text area changes (all changes, including IME)
+    const handleTextAreaChange = (e) => {
+        const newValue = e.target.value;
+        if (finished) return;
+
+        // First keystroke starts the timer
+        if (!startedAtRef.current && newValue.length > 0) {
+            startedAtRef.current = performance.now();
+            startTicker();
+        }
+
+        // Accumulate keystrokes (comparing previous vs new expanded)
+        // Value state keeps literal tabs, so we must expand both
+        const prevExpanded = renderValue;
+        const newExpanded = expandTabs(newValue, tabSize);
+        accumulateKeypresses(prevExpanded, newExpanded);
+
+        setValue(newValue);
+        checkCompletionAndFinish(newValue);
+    };
+
+    // Special key handling (Tab, Enter, and smart outdent on '}')
     const onKeyDown = (e) => {
+        if (finished) return;
+
+        // Helper to start the timer if not started yet
+        const ensureStarted = (nextStr) => {
+            if (!startedAtRef.current && nextStr.length > 0) {
+                startedAtRef.current = performance.now();
+                startTicker();
+            }
+        };
+
         // 1) Insert a real tab character (atomic for Backspace)
         if (e.key === "Tab") {
             e.preventDefault();
@@ -223,8 +309,16 @@ function TypingArea({
             const start = ta.selectionStart;
             const end = ta.selectionEnd;
             const next = value.slice(0, start) + "\t" + value.slice(end);
+
+            ensureStarted(next);
+
+            const prevExpanded = renderValue;
+            const nextExpanded = expandTabs(next, tabSize);
+            accumulateKeypresses(prevExpanded, nextExpanded);
+
             setValue(next);
-            // Place caret after the inserted tab
+            checkCompletionAndFinish(next);
+
             requestAnimationFrame(() => {
                 const pos = start + 1;
                 ta.selectionStart = ta.selectionEnd = pos;
@@ -232,7 +326,6 @@ function TypingArea({
             return;
         }
 
-        // Helper: compute line boundaries and indentation
         const getLineInfo = (pos) => {
             const lineStart = value.lastIndexOf("\n", pos - 1) + 1;
             const nextNl = value.indexOf("\n", pos);
@@ -240,19 +333,14 @@ function TypingArea({
             const before = value.slice(lineStart, pos);
             const after = value.slice(pos, lineEnd);
             const indent = (before.match(/^[\t ]*/) || [""])[0];
-
-            // Determine the unit to use for one indent level
-            // Prefer tabs if the line has tabs, otherwise spaces
             const indentUnit = indent.includes("\t")
                 ? "\t"
                 : " ".repeat(tabSize);
 
-            // Last non-whitespace char before the caret within the line
             let k = before.length - 1;
             while (k >= 0 && (before[k] === " " || before[k] === "\t")) k--;
             const prevChar = k >= 0 ? before[k] : null;
 
-            // First non-whitespace char after the caret within the line
             let m = 0;
             while (m < after.length && (after[m] === " " || after[m] === "\t"))
                 m++;
@@ -270,8 +358,7 @@ function TypingArea({
             };
         };
 
-        // 2) Smart Enter: keep indentation; if after '{' add one level;
-        //    if the next non-ws is '}', do the common "brace split" layout.
+        // 2) Smart Enter
         if (e.key === "Enter") {
             e.preventDefault();
             const ta = e.currentTarget;
@@ -285,7 +372,6 @@ function TypingArea({
             let caretDelta = insertText.length;
 
             if (info.prevChar === "{") {
-                // Brace split if the closing brace is next (typical editor behavior)
                 if (info.nextChar === "}") {
                     insertText =
                         "\n" +
@@ -293,7 +379,6 @@ function TypingArea({
                         info.indentUnit +
                         "\n" +
                         info.indent;
-                    // Caret placed on the inner indented line
                     caretDelta =
                         1 + info.indent.length + info.indentUnit.length;
                 } else {
@@ -303,7 +388,16 @@ function TypingArea({
             }
 
             const newValue = baseBefore + insertText + baseAfter;
+
+            ensureStarted(newValue);
+
+            const prevExpanded = renderValue;
+            const nextExpanded = expandTabs(newValue, tabSize);
+            accumulateKeypresses(prevExpanded, nextExpanded);
+
             setValue(newValue);
+            checkCompletionAndFinish(newValue);
+
             requestAnimationFrame(() => {
                 const pos = start + caretDelta;
                 ta.selectionStart = ta.selectionEnd = pos;
@@ -311,14 +405,12 @@ function TypingArea({
             return;
         }
 
-        // 3) Smart outdent on '}' at the start indentation of the line:
-        //    if caret is within the indentation, remove one indent level
-        //    and then insert '}' at the new indentation column.
+        // 3) Smart outdent on '}'
         if (e.key === "}") {
             const ta = e.currentTarget;
             const start = ta.selectionStart;
             const end = ta.selectionEnd;
-            if (start !== end) return; // let default handle selections
+            if (start !== end) return;
 
             const info = getLineInfo(start);
             const caretInIndent = start - info.lineStart <= info.indent.length;
@@ -326,14 +418,12 @@ function TypingArea({
             if (caretInIndent && info.indent.length > 0) {
                 e.preventDefault();
 
-                // Remove one indent level (tab or tabSize spaces)
                 let newIndent = info.indent;
                 if (newIndent.endsWith("\t")) {
                     newIndent = newIndent.slice(0, -1);
                 } else if (newIndent.endsWith(" ".repeat(tabSize))) {
                     newIndent = newIndent.slice(0, -tabSize);
                 } else {
-                    // Fallback: remove up to tabSize trailing spaces
                     const m = newIndent.match(/ +$/);
                     if (m) {
                         const count = m[0].length;
@@ -348,45 +438,53 @@ function TypingArea({
                 );
 
                 const updated = beforeLine + newIndent + "}" + afterIndent;
+
+                ensureStarted(updated);
+
+                const prevExpanded = renderValue;
+                const nextExpanded = expandTabs(updated, tabSize);
+                accumulateKeypresses(prevExpanded, nextExpanded);
+
                 setValue(updated);
+                checkCompletionAndFinish(updated);
+
                 requestAnimationFrame(() => {
-                    const pos = beforeLine.length + newIndent.length + 1; // after '}'
+                    const pos = beforeLine.length + newIndent.length + 1;
                     ta.selectionStart = ta.selectionEnd = pos;
                 });
                 return;
             }
-            // Otherwise, let the browser insert '}' normally
+            // Otherwise, let the browser insert '}' normally (onChange lo maneja)
         }
     };
 
     // --- Dynamic Styles & Coordinates ---
-    const xHole = `calc(${padding}px + ${holeCol}ch)`;
-    const yHoleTop = `${padding + holeRow * lineHeight}px`;
-    const yHoleBot = `${padding + (holeRow + 1) * lineHeight}px`;
+    const xCorrectPrefix = `calc(${padding}px + ${correctPrefixCol}ch)`;
+    const yCorrectPrefixTop = `${padding + correctPrefixRow * lineHeight}px`;
+    const yCorrectPrefixBot = `${
+        padding + (correctPrefixRow + 1) * lineHeight
+    }px`;
 
     const xCaret = `calc(${padding}px + ${caretCol}ch)`;
     const yCaretTop = `${padding + caretRow * lineHeight}px`;
 
-    // L-shaped clip that keeps "untyped" region dimmed
     const clipPath = `polygon(
-    ${xHole} ${yHoleTop},
-    100% ${yHoleTop},
+    ${xCorrectPrefix} ${yCorrectPrefixTop},
+    100% ${yCorrectPrefixTop},
     100% 100%,
     0 100%,
-    0 ${yHoleBot},
-    ${xHole} ${yHoleBot}
+    0 ${yCorrectPrefixBot},
+    ${xCorrectPrefix} ${yCorrectPrefixBot}
   )`;
 
     return (
         <div className="w-full flex justify-center">
             <div className="relative w-full border border-gray-700 rounded-md max-w-lg sm:max-w-xl md:max-w-2xl lg:max-w-3xl xl:max-w-4xl">
-                {/* Scrollable container */}
                 <div
                     className="relative overflow-auto rounded-md"
                     style={{ height, background: editorBg }}
                     onMouseDown={() => textareaRef.current?.focus()}
                 >
-                    {/* Content wrapper sized to code width (pre uses padding) */}
                     <div
                         className="relative"
                         style={{
@@ -394,7 +492,6 @@ function TypingArea({
                             width: "max-content",
                         }}
                     >
-                        {/* Base layer: vivid, syntax-highlighted code (single highlighter) */}
                         <MemoSyntax
                             language={language}
                             style={vscDarkPlus}
@@ -406,7 +503,7 @@ function TypingArea({
                             {renderCode}
                         </MemoSyntax>
 
-                        {/* Un-typed dim overlay (ghost text) clipped with L hole */}
+                        {/* Ghost overlay (untyped) */}
                         <div
                             className="pointer-events-none absolute inset-0"
                             style={{
@@ -424,8 +521,7 @@ function TypingArea({
                             </pre>
                         </div>
 
-                        {/* Error overlay: from first mismatch to caret (cascade).
-                Prefix is invisible (color: transparent) to keep geometry. */}
+                        {/* Error overlay */}
                         <div
                             className="pointer-events-none absolute inset-0"
                             style={{
@@ -440,7 +536,7 @@ function TypingArea({
                                     style={{
                                         ...metrics,
                                         whiteSpace: "pre",
-                                        color: "transparent", // hide matched prefix
+                                        color: "transparent",
                                     }}
                                 >
                                     {errorContent}
@@ -448,7 +544,7 @@ function TypingArea({
                             </pre>
                         </div>
 
-                        {/* Invisible caret marker used only for auto-scroll (follows real caret) */}
+                        {/* Caret marker for autoscroll */}
                         <div
                             ref={caretMarkerRef}
                             aria-hidden
@@ -465,11 +561,11 @@ function TypingArea({
                         />
                     </div>
 
-                    {/* Invisible textarea that shows the blinking caret and captures input */}
+                    {/* Invisible textarea */}
                     <textarea
                         ref={textareaRef}
                         value={value}
-                        onChange={(e) => setValue(e.target.value)}
+                        onChange={handleTextAreaChange}
                         onKeyDown={onKeyDown}
                         spellCheck="false"
                         autoCapitalize="none"
@@ -478,13 +574,13 @@ function TypingArea({
                         className="absolute top-0 left-0 w-full h-full focus:outline-none"
                         style={{
                             background: "transparent",
-                            color: "transparent", // hide typed text
-                            caretColor: "#60a5fa", // keep native caret visible
+                            color: "transparent",
+                            caretColor: "#60a5fa",
                             whiteSpace: "pre",
                             resize: "none",
                             overflow: "hidden",
                             padding: `${padding}px`,
-                            ...metrics, // caret aligns with the code thanks to same metrics
+                            ...metrics,
                             zIndex: 3,
                         }}
                         aria-label="Type to reveal the code"

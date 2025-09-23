@@ -23,6 +23,7 @@ function App() {
             <h1 className="text-4xl font-bold mb-4 font-mono">nerdracer</h1>
 
             <TypingArea
+                key={snippet.code}
                 codeToType={snippet.code}
                 language={snippet.language}
                 onStatsChange={setStats}
