@@ -1,4 +1,5 @@
 import React, { useState } from "react";
+import "./App.css";
 import TypingArea from "./components/TypingArea";
 import Keyboard from "./components/Keyboard";
 import Stats from "./components/Stats";
@@ -8,7 +9,7 @@ function App() {
     const snippet = {
         code: codeSnippets[1].snippets[0],
         language: codeSnippets[1].language,
-    }
+    };
 
     const [stats, setStats] = useState({
         wpm: 0,

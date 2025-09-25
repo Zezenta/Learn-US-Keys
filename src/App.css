@@ -1,0 +1,27 @@
+/* ===== Scrollbar Global Styles ===== */
+
+/* Estilo para navegadores basados en WebKit (Chrome, Edge, Safari) */
+::-webkit-scrollbar {
+    width: 8px; /* ancho de la barra vertical */
+    height: 8px; /* alto de la barra horizontal */
+}
+
+::-webkit-scrollbar-track {
+    background: #1e1e1e; /* fondo oscuro (track) */
+}
+
+::-webkit-scrollbar-thumb {
+    background-color: #555; /* color de la barra */
+    border-radius: 4px; /* borde redondeado */
+    border: 2px solid #1e1e1e; /* para “espaciar” del track */
+}
+
+::-webkit-scrollbar-thumb:hover {
+    background-color: #777;
+}
+
+/* ===== Firefox ===== */
+* {
+    scrollbar-width: thin; /* “auto” o “thin” */
+    scrollbar-color: #555 #1e1e1e; /* thumb color | track color */
+}
