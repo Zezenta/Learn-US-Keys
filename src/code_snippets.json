@@ -1,22 +1,121 @@
 [
     {
-        "language": "javascript",
-        "code": "const greet = (name) => {\n\tconst message = `Hello, ${name}!`;\n\tconsole.log(message.split(' ')[0]); // Outputs \"Hello,\"\n};\ngreet('World');"
-    },
-    {
-        "language": "python",
-        "code": "def filter_numbers(nums: list[int]) -> list[int]:\n\t# Filter out numbers > 5 and return a new list\n\treturn [n for n in nums if n <= 5 and n % 2 == 0]"
+        "language": "assembly",
+        "snippets": [
+            "section .data\n\tmsg db 'Hello, world!', 0Ah\n\nsection .text\n\tglobal _start\n\n_start:\n\tmov edx, len msg\n\tmov ecx, msg\n\tmov ebx, 1\n\tmov eax, 4\n\tint 0x80\n\n\tmov eax, 1\n\tint 0x80",
+            "section .text\n\tglobal _start\n\n_start:\n\tmov eax, 5\n\tmov ebx, 3\n\tadd eax, ebx\n\tint 0x80"
+        ]
     },
     {
         "language": "c",
-        "code": "#include <stdio.h>\n\nint main() {\n\tint arr[] = {1, 2, 3, 4, 5};\n\tint* ptr = arr;\n\tprintf(\"Value: %d\", *(ptr + 2)); // Should be 3\n\treturn 0;\n}"
+        "snippets": [
+            "#include <stdio.h>\n#include <stdint.h>\nfloat Q_rsqrt( float number ) {\n\tlong i;\n\tfloat x2, y;\n\tconst float threehalfs = 1.5F;\n\tx2 = number * 0.5F;\n\ty  = number;\n\ti  = * ( long * ) &y;\n\ti  = 0x5f3759df - ( i >> 1 );\n\ty  = * ( float * ) &i;\n\ty  = y * ( threehalfs - ( x2 * y * y ) );\n\treturn y;\n}\n\nint main() {\n\tfloat num = 4.0;\n\tprintf(\"Fast inverse sqrt of %f: %f\\n\", num, Q_rsqrt(num));\n\treturn 0;\n}",
+            "#include <stdio.h>\nint main() {\n\tfor (int i = 1; i <= 5; i++) {\n\t\tprintf(\"%d \", i * i);\n\t}\n\treturn 0;\n}"
+        ]
+    },
+    {
+        "language": "cobol",
+        "snippets": [
+            "IDENTIFICATION DIVISION.\nPROGRAM-ID. HelloWorld.\nPROCEDURE DIVISION.\n\tDISPLAY 'Hello, COBOL!'.\n\tSTOP RUN.",
+            "IDENTIFICATION DIVISION.\nPROGRAM-ID. AddNumbers.\nDATA DIVISION.\nWORKING-STORAGE SECTION.\n01 A PIC 9 VALUE 5.\n01 B PIC 9 VALUE 7.\n01 C PIC 99.\nPROCEDURE DIVISION.\n\tADD A TO B GIVING C.\n\tDISPLAY \"Sum is \" C.\n\tSTOP RUN."
+        ]
     },
     {
         "language": "cpp",
-        "code": "#include <iostream>\n#include <vector>\n\nint main() {\n\tstd::vector<int> nums = {10, 20, 30};\n\tfor (int& num : nums) {\n\t\tnum += 5; // Add 5 to each element\n\t}\n\tstd::cout << nums[0] << std::endl; // 15\n}"
+        "snippets": [
+            "#include <iostream>\n#include <vector>\n\nint main() {\n\tstd::vector<int> nums = {10, 20, 30};\n\tfor (int& num : nums) {\n\t\tnum += 5;\n\t}\n\tstd::cout << nums[0] << std::endl;\n}",
+            "#include <iostream>\nint main() {\n\tstd::string s = \"Hello\";\n\tstd::cout << s.size() << std::endl;\n\treturn 0;\n}"
+        ]
+    },
+    {
+        "language": "go",
+        "snippets": [
+            "package main\nimport \"fmt\"\nfunc main() {\n\tnums := []int{1, 2, 3}\n\tfmt.Println(nums)\n}",
+            "package main\nimport \"fmt\"\nfunc main() {\n\tfor i := 1; i <= 5; i++ {\n\t\tfmt.Println(i * i)\n\t}\n}"
+        ]
+    },
+    {
+        "language": "haskell",
+        "snippets": [
+            "doubleList :: [Int] -> [Int]\ndoubleList xs = map (*2) xs\nmain :: IO ()\nmain = print (doubleList [1,2,3])",
+            "factorial :: Int -> Int\nfactorial 0 = 1\nfactorial n = n * factorial (n-1)\nmain :: IO ()\nmain = print (factorial 5)"
+        ]
+    },
+    {
+        "language": "java",
+        "snippets": [
+            "public class Main {\n\tpublic static void main(String[] args) {\n\t\tSystem.out.println(\"Hello World\");\n\t}\n}",
+            "public class SquareNumbers {\n\tpublic static void main(String[] args) {\n\t\tfor (int i = 1; i <= 5; i++) {\n\t\t\tSystem.out.println(i * i);\n\t\t}\n\t}\n}"
+        ]
+    },
+    {
+        "language": "javascript",
+        "snippets": [
+            "const greet = (name) => {\n\tconsole.log(`Hello, ${name}`);\n};\ngreet('World');",
+            "const nums = [1, 2, 3];\nconsole.log(nums.map(n => n * n));"
+        ]
+    },
+    {
+        "language": "laravel",
+        "snippets": [
+            "<?php\nRoute::get('/hello', function() {\n\treturn 'Hello from Laravel!';\n});",
+            "<?php\nuse Illuminate\\Support\\Facades\\DB;\n$users = DB::table('users')->where('active', 1)->get();"
+        ]
+    },
+    {
+        "language": "lua",
+        "snippets": [
+            "nums = {1, 2, 3, 4}\nfor i, v in ipairs(nums) do\n\tnums[i] = v * v\nend\nprint(table.concat(nums, \", \"))",
+            "function greet(name)\n\tprint(\"Hello, \" .. name)\nend\ngreet(\"Lua\")"
+        ]
+    },
+    {
+        "language": "ocaml",
+        "snippets": [
+            "let rec factorial n = if n = 0 then 1 else n * factorial (n - 1)\nlet () = print_int (factorial 5)",
+            "let square_list lst = List.map (fun x -> x * x) lst\nlet () = List.iter (fun x -> Printf.printf \"%d \" x) (square_list [1;2;3])"
+        ]
+    },
+    {
+        "language": "php",
+        "snippets": [
+            "<?php\necho 'Hello, PHP!';",
+            "<?php\n$numbers = [1, 2, 3, 4];\n$squares = array_map(fn($n) => $n*$n, $numbers);\nprint_r($squares);"
+        ]
+    },
+    {
+        "language": "python",
+        "snippets": [
+            "def filter_numbers(nums: list[int]) -> list[int]:\n\treturn [n for n in nums if n <= 5 and n % 2 == 0]",
+            "def factorial(n: int) -> int:\n\treturn 1 if n == 0 else n * factorial(n-1)\nprint(factorial(5))"
+        ]
+    },
+    {
+        "language": "react",
+        "snippets": [
+            "import React from 'react';\nexport default function App() {\n\treturn <h1>Hello React</h1>;\n}",
+            "import React, { useState } from 'react';\nfunction Counter() {\n\tconst [count, setCount] = useState(0);\n\treturn <button onClick={() => setCount(count + 1)}>{count}</button>;\n}\nexport default Counter;"
+        ]
     },
     {
         "language": "rust",
-        "code": "fn main() {\n\tlet data = vec![1, 2, 3];\n\tlet mut data_iter = data.iter().map(|x| x + 1);\n\tassert_eq!(data_iter.next(), Some(2));\n}"
+        "snippets": [
+            "fn main() {\n\tlet data = vec![1, 2, 3];\n\tlet squares: Vec<_> = data.iter().map(|x| x * x).collect();\n\tprintln!(\"{:?}\", squares);\n}",
+            "fn factorial(n: u32) -> u32 {\n\tif n == 0 { 1 } else { n * factorial(n-1) }\n}\nfn main() { println!(\"{}\", factorial(5)); }"
+        ]
+    },
+    {
+        "language": "typescript",
+        "snippets": [
+            "function greet(name: string): void {\n\tconsole.log(`Hello, ${name}`);\n}\ngreet('TypeScript');",
+            "const nums: number[] = [1, 2, 3];\nconsole.log(nums.map(n => n * n));"
+        ]
+    },
+    {
+        "language": "zig",
+        "snippets": [
+            "const std = @import(\"std\");\npub fn main() !void {\n\tconst stdout = std.io.getStdOut().writer();\n\ttry stdout.print(\"Hello, Zig!\\n\", .{});\n}",
+            "const std = @import(\"std\");\npub fn main() !void {\n\tvar sum: i32 = 0;\n\tfor ([_]i32{1,2,3,4}) |n| {\n\t\tsum += n;\n\t}\n\tstd.debug.print(\"Sum={d}\\n\", .{sum});\n}"
+        ]
     }
 ]

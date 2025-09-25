@@ -5,7 +5,10 @@ import Stats from "./components/Stats";
 import codeSnippets from "./code_snippets.json";
 
 function App() {
-    const snippet = codeSnippets[3];
+    const snippet = {
+        code: codeSnippets[1].snippets[0],
+        language: codeSnippets[1].language,
+    }
 
     const [stats, setStats] = useState({
         wpm: 0,
