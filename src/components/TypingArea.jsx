@@ -74,6 +74,7 @@ function TypingArea({
     // --- Refs and State ---
     const textareaRef = useRef(null);
     const caretMarkerRef = useRef(null);
+    const scrollRef = useRef(null); // scrollable container
     const [value, setValue] = useState(""); // User input keeps literal tabs
 
     // timing refs
@@ -263,6 +264,21 @@ function TypingArea({
 
     // Scroll caret into view on changes
     useEffect(() => {
+        const sc = scrollRef.current;
+        if (!sc) return;
+
+        // Vertical centering: keep caret ~40% from top while typing.
+        // Clamp so we don't overscroll near the end.
+        const viewH = sc.clientHeight;
+        const maxTop = Math.max(sc.scrollHeight - viewH, 0);
+        const caretTopPx = padding + caretRow * lineHeight; // top of caret line in content coords
+        const desiredTop = caretTopPx - viewH * 0.4;
+        const nextTop = Math.max(0, Math.min(desiredTop, maxTop));
+
+        // Smooth vertical scroll for better UX
+        sc.scrollTo({ top: nextTop, behavior: "smooth" });
+
+        // Horizontal: keep nearest visibility without jumping
         caretMarkerRef.current?.scrollIntoView({
             block: "nearest",
             inline: "nearest",
@@ -481,6 +497,7 @@ function TypingArea({
         <div className="w-full flex justify-center">
             <div className="relative w-full border border-gray-700 rounded-md max-w-lg sm:max-w-xl md:max-w-2xl lg:max-w-3xl xl:max-w-4xl">
                 <div
+                    ref={scrollRef}
                     className="relative overflow-auto rounded-md"
                     style={{ height, background: editorBg }}
                     onMouseDown={() => textareaRef.current?.focus()}
@@ -559,32 +576,32 @@ function TypingArea({
                                 zIndex: 0,
                             }}
                         />
-                    </div>
 
-                    {/* Invisible textarea */}
-                    <textarea
-                        ref={textareaRef}
-                        value={value}
-                        onChange={handleTextAreaChange}
-                        onKeyDown={onKeyDown}
-                        spellCheck="false"
-                        autoCapitalize="none"
-                        autoComplete="off"
-                        autoCorrect="off"
-                        className="absolute top-0 left-0 w-full h-full focus:outline-none"
-                        style={{
-                            background: "transparent",
-                            color: "transparent",
-                            caretColor: "#60a5fa",
-                            whiteSpace: "pre",
-                            resize: "none",
-                            overflow: "hidden",
-                            padding: `${padding}px`,
-                            ...metrics,
-                            zIndex: 3,
-                        }}
-                        aria-label="Type to reveal the code"
-                    />
+                        {/* Invisible textarea */}
+                        <textarea
+                            ref={textareaRef}
+                            value={value}
+                            onChange={handleTextAreaChange}
+                            onKeyDown={onKeyDown}
+                            spellCheck="false"
+                            autoCapitalize="none"
+                            autoComplete="off"
+                            autoCorrect="off"
+                            className="absolute top-0 left-0 w-full h-full focus:outline-none"
+                            style={{
+                                background: "transparent",
+                                color: "transparent",
+                                caretColor: "#60a5fa",
+                                whiteSpace: "pre",
+                                resize: "none",
+                                overflow: "hidden",
+                                padding: `${padding}px`,
+                                ...metrics,
+                                zIndex: 3,
+                            }}
+                            aria-label="Type to reveal the code"
+                        />
+                    </div>
                 </div>
             </div>
         </div>

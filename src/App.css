@@ -1,19 +1,19 @@
 /* ===== Scrollbar Global Styles ===== */
 
-/* Estilo para navegadores basados en WebKit (Chrome, Edge, Safari) */
+/* Style for WebKit-based browsers (Chrome, Edge, Safari) */
 ::-webkit-scrollbar {
-    width: 8px; /* ancho de la barra vertical */
-    height: 8px; /* alto de la barra horizontal */
+    width: 8px; /* width of the vertical scrollbar */
+    height: 8px; /* height of the horizontal scrollbar */
 }
 
 ::-webkit-scrollbar-track {
-    background: #1e1e1e; /* fondo oscuro (track) */
+    background: #1e1e1e; /* dark background (track) */
 }
 
 ::-webkit-scrollbar-thumb {
-    background-color: #555; /* color de la barra */
-    border-radius: 4px; /* borde redondeado */
-    border: 2px solid #1e1e1e; /* para “espaciar” del track */
+    background-color: #555; /* scrollbar thumb color */
+    border-radius: 4px; /* rounded border */
+    border: 2px solid #1e1e1e; /* to create spacing from the track */
 }
 
 ::-webkit-scrollbar-thumb:hover {
@@ -22,6 +22,6 @@
 
 /* ===== Firefox ===== */
 * {
-    scrollbar-width: thin; /* “auto” o “thin” */
+    scrollbar-width: thin; /* "auto" or "thin" */
     scrollbar-color: #555 #1e1e1e; /* thumb color | track color */
 }
