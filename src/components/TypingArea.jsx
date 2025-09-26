@@ -144,14 +144,12 @@ function TypingArea({
 
     // --- Stats: ticker + refs (report every 1s) ---
     const tickerIdRef = useRef(null);
-    const typedRef = useRef(0);
     const correctRef = useRef(0);
     const onStatsChangeRef = useRef(onStatsChange);
     const keyCountsRef = useRef([0, 0]); // accuracy accumulated [correctKeys, wrongKeys]
 
     // sync refs in each render (cheap and doesn't re render)
     onStatsChangeRef.current = onStatsChange;
-    typedRef.current = caretLen;
     correctRef.current = correctPrefixLen;
 
     // Calculates accuracy based on accumulated keystrokes
@@ -173,35 +171,28 @@ function TypingArea({
             );
             const minutes = elapsedMs / 60000;
 
-            const typed = typedRef.current;
             const correct = correctRef.current;
 
             const accuracy = computeAccuracyFromKeys();
-            const grossWpm = typed > 0 ? typed / 5 / minutes : 0;
             const netWpm = correct > 0 ? correct / 5 / minutes : 0;
 
             onStatsChangeRef.current?.({
                 wpm: netWpm,
                 accuracy,
-                grossWpm,
-                netWpm,
                 elapsedMs,
                 correct,
-                typed,
                 finished: false,
             });
         }, 1000);
     };
 
-    // Stop ticker
+    // Stop ticker function and cleanup
     const stopTicker = () => {
         if (tickerIdRef.current != null) {
             clearInterval(tickerIdRef.current);
             tickerIdRef.current = null;
         }
     };
-
-    // Cleanup ticker on unmount
     useEffect(() => {
         return () => stopTicker();
     }, []);
@@ -226,6 +217,8 @@ function TypingArea({
 
     const checkCompletionAndFinish = (newValue) => {
         const newRenderValue = expandTabs(newValue, tabSize);
+
+        // If completed the code
         if (renderCode.length > 0 && newRenderValue === renderCode) {
             const finishTime = performance.now();
             finishedAtRef.current = finishTime;
@@ -262,6 +255,9 @@ function TypingArea({
         }
     };
 
+
+
+
     // Scroll caret into view on changes
     useEffect(() => {
         const sc = scrollRef.current;
@@ -285,7 +281,10 @@ function TypingArea({
         });
     }, [caretRow, caretCol, value]);
 
-    // Handle text area changes (all changes, including IME)
+
+
+
+    // Handle text area changes
     const handleTextAreaChange = (e) => {
         const newValue = e.target.value;
         if (finished) return;
