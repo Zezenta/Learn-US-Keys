@@ -24,7 +24,7 @@ const rowColFromPrefixLen = (text, len) => {
 
 // --- Static Configuration ---
 const tabSize = 4; // option to change later
-const height = 320; // visible height
+const minHeight = "360px";
 const padding = 16; // px
 const fontSize = 18; // px
 const lineHeight = 28; // px
@@ -518,7 +518,11 @@ function TypingArea({
                 <div
                     ref={scrollRef}
                     className="relative overflow-auto rounded-md"
-                    style={{ height, background: editorBg }}
+                    style={{
+                        minHeight,
+                        maxHeight: "35vh",
+                        background: editorBg
+                    }}
                     onMouseDown={() => textareaRef.current?.focus()}
                 >
                     <div
