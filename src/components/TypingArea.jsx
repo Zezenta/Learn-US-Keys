@@ -62,12 +62,12 @@ const overlayTextCode = {
 const errorCharStyle = {
     color: "#fff",
     backgroundColor: "rgba(239, 68, 68, 0.9)", // red-500-ish
-    borderRadius: 2,
 };
 
 function TypingArea({
     codeToType,
     language = "javascript",
+    onProgressChange,
     onStatsChange,
     onComplete,
 }) {
@@ -82,12 +82,25 @@ function TypingArea({
     const finishedAtRef = useRef(null);
     const [finished, setFinished] = useState(false);
 
+    // Update progress bar
+    const calculateAndUpdateProgress = (currentValue) => {
+        let correctChars = 0;
+        for(let i = 0; i < codeToType.length; i++) {
+            if (currentValue[i] === codeToType[i]) {
+                correctChars++;
+            } else {
+                break;
+            }
+        }
+        const progressPercentage = (correctChars / codeToType.length) * 100;
+        onProgressChange(progressPercentage);
+    }
+
     // --- Memoized Calculations ---
     const renderCode = useMemo(
         () => expandTabs(codeToType, tabSize),
         [codeToType]
     );
-
     const renderValue = useMemo(() => expandTabs(value, tabSize), [value]);
 
     // Checks where the first mismatch is (or -1 if all match)
@@ -292,6 +305,8 @@ function TypingArea({
         const newValue = e.target.value;
         if (finished) return;
 
+        calculateAndUpdateProgress(newValue);
+
         // First keystroke starts the timer
         if (!startedAtRef.current && newValue.length > 0) {
             startedAtRef.current = performance.now();
@@ -327,6 +342,7 @@ function TypingArea({
             const start = ta.selectionStart;
             const end = ta.selectionEnd;
             const next = value.slice(0, start) + "\t" + value.slice(end);
+            calculateAndUpdateProgress(next);
 
             ensureStarted(next);
 
@@ -406,6 +422,7 @@ function TypingArea({
             }
 
             const newValue = baseBefore + insertText + baseAfter;
+            calculateAndUpdateProgress(newValue);
 
             ensureStarted(newValue);
 

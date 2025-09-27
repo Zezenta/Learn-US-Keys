@@ -1,6 +1,7 @@
 import React, { useState, useCallback } from "react";
 import "./App.css";
 import TypingArea from "./components/TypingArea";
+import ProgressBar from "./components/ProgressBar";
 import Keyboard from "./components/Keyboard";
 import Share from "./components/Share";
 import Stats from "./components/Stats";
@@ -11,7 +12,7 @@ function App() {
         code: codeSnippets[2].snippets[0],
         language: codeSnippets[2].language,
     };
-
+    const [progress, setProgress] = useState(0);
     const [stats, setStats] = useState({
         wpm: 0,
         accuracy: 100,
@@ -22,10 +23,10 @@ function App() {
         typed: 0,
         finished: false,
     });
-
     const handleShare = useCallback(() => {
         console.log("Share button clicked", stats.wpm);
     }, [stats]);
+
 
     return (
         <div className="min-h-screen bg-gray-900 text-white flex flex-col items-center justify-center">
@@ -35,11 +36,14 @@ function App() {
                 key={snippet.code}
                 codeToType={snippet.code}
                 language={snippet.language}
+                onProgressChange={setProgress}
                 onStatsChange={setStats}
                 onComplete={() => {
                     setStats((prev) => ({ ...prev, finished: true }));
                 }}
             />
+
+            <ProgressBar progress={progress} />
 
             <Stats
                 wpm={Math.round(stats.wpm)}
