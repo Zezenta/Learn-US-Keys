@@ -280,7 +280,10 @@ function TypingArea({
             inline: "nearest",
         });
     }, [caretRow, caretCol, value]);
-
+    // Focus textarea on mount
+    useEffect(() => {
+        textareaRef.current.focus();
+    }, [textareaRef]);
 
 
 
@@ -506,6 +509,8 @@ function TypingArea({
                         style={{
                             display: "inline-block",
                             width: "max-content",
+                            minWidth: "100%",
+                            minHeight: "100%",
                         }}
                     >
                         <MemoSyntax
