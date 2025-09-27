@@ -1,14 +1,15 @@
-import React, { useState } from "react";
+import React, { useState, useCallback } from "react";
 import "./App.css";
 import TypingArea from "./components/TypingArea";
 import Keyboard from "./components/Keyboard";
+import Share from "./components/Share";
 import Stats from "./components/Stats";
 import codeSnippets from "./code_snippets.json";
 
 function App() {
     const snippet = {
-        code: codeSnippets[1].snippets[0],
-        language: codeSnippets[1].language,
+        code: codeSnippets[2].snippets[0],
+        language: codeSnippets[2].language,
     };
 
     const [stats, setStats] = useState({
@@ -22,6 +23,10 @@ function App() {
         finished: false,
     });
 
+    const handleShare = useCallback(() => {
+        console.log("Share button clicked", stats.wpm);
+    }, [stats]);
+
     return (
         <div className="min-h-screen bg-gray-900 text-white flex flex-col items-center justify-center">
             <h1 className="text-4xl font-bold mb-4 font-mono">nerdracer</h1>
@@ -31,9 +36,8 @@ function App() {
                 codeToType={snippet.code}
                 language={snippet.language}
                 onStatsChange={setStats}
-                onComplete={(finalStats) => {
-                    // choose what to do when finished
-                    console.log("Finished:", finalStats);
+                onComplete={() => {
+                    setStats((prev) => ({ ...prev, finished: true }));
                 }}
             />
 
@@ -41,6 +45,13 @@ function App() {
                 wpm={Math.round(stats.wpm)}
                 accuracy={Math.round(stats.accuracy)}
             />
+
+            <div className="mt-4" style={{ height: "44px" }}>
+                {stats.finished && (<Share
+                    showShare={stats.finished}
+                    onClick={handleShare}
+                />)}
+            </div>
         </div>
     );
 }
