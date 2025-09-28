@@ -8,10 +8,56 @@ import Stats from "./components/Stats";
 import Footer from "./components/Footer";
 import codeSnippets from "./code_snippets.json";
 
+
+
+// Create a shuffled deck of code snippets ensuring the first two are from different beginner languages
+// I put this outside the component to avoid re-creating the deck on every render
+const createShuffledDeck = () => {
+    function shuffleArray(array) { // Shoutout to Ronald Fisher and Frank Yates for the Fisher-Yates shuffle
+        for (let i = array.length - 1; i >= 1; i--) {
+            const j = Math.floor(Math.random() * (i + 1));
+            [array[i], array[j]] = [array[j], array[i]];
+        }
+        return array;
+    }
+    const beginnerLangs = ["javascript", "c++", "python", "typescript"];
+    const beginnerDeck = [];
+    const otherDeck = [];
+    for(let i = 0; i < codeSnippets.length; i++) {
+        for(let j = 0; j < codeSnippets[i].snippets.length; j++) {
+            const snippet = { language: codeSnippets[i].language, code: codeSnippets[i].snippets[j] };
+            if(beginnerLangs.includes(codeSnippets[i].language)) {
+                beginnerDeck.push(snippet);
+            }else {
+                otherDeck.push(snippet);
+            }
+        }
+    }
+    shuffleArray(beginnerDeck);
+    shuffleArray(otherDeck);
+
+    const firstSnippet = beginnerDeck.pop();
+    const secondSnippetIndex = beginnerDeck.findIndex(snippet => snippet.language != firstSnippet.language);
+    let secondSnippet;
+    if(secondSnippetIndex !== -1) {
+        secondSnippet = beginnerDeck.splice(secondSnippetIndex, 1)[0];
+    } else {
+        secondSnippet = beginnerDeck.pop();
+    }
+    const remainingDeck = [...beginnerDeck, ...otherDeck];
+    shuffleArray(remainingDeck);
+    return [firstSnippet, secondSnippet, ...remainingDeck];
+}
+
+
+
+
 function App() {
+    const [deck, setDeck] = useState(createShuffledDeck);
+
     const snippet = {
-        code: codeSnippets[1].snippets[0],
-        language: codeSnippets[1].language,
+        code: codeSnippets[2].snippets[0],
+        language: codeSnippets[2].language,
     };
     const [progress, setProgress] = useState(0);
     const [stats, setStats] = useState({

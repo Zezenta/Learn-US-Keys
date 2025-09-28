@@ -24,7 +24,8 @@ const rowColFromPrefixLen = (text, len) => {
 
 // --- Static Configuration ---
 const tabSize = 4; // option to change later
-const minHeight = "360px";
+const minHeight = "300px";
+const maxHeight = "35vh";
 const padding = 16; // px
 const fontSize = 18; // px
 const lineHeight = 28; // px
@@ -520,7 +521,7 @@ function TypingArea({
                     className="relative overflow-auto rounded-md"
                     style={{
                         minHeight,
-                        maxHeight: "35vh",
+                        maxHeight,
                         background: editorBg
                     }}
                     onMouseDown={() => textareaRef.current?.focus()}
@@ -531,7 +532,6 @@ function TypingArea({
                             display: "inline-block",
                             width: "max-content",
                             minWidth: "100%",
-                            minHeight: "100%",
                         }}
                     >
                         <MemoSyntax
@@ -544,89 +544,86 @@ function TypingArea({
                         >
                             {renderCode}
                         </MemoSyntax>
-
-                        {/* Ghost overlay (untyped) */}
-                        <div
-                            className="pointer-events-none absolute inset-0"
-                            style={{
-                                ...metrics,
-                                clipPath,
-                                willChange: "clip-path",
-                                zIndex: 1,
-                            }}
-                            aria-hidden
-                        >
-                            <pre style={overlayTextPre}>
-                                <code style={overlayTextCode}>
-                                    {renderCode}
-                                </code>
-                            </pre>
-                        </div>
-
-                        {/* Error overlay */}
-                        <div
-                            className="pointer-events-none absolute inset-0"
-                            style={{
-                                ...metrics,
-                                whiteSpace: "pre",
-                                zIndex: 2,
-                            }}
-                            aria-hidden
-                        >
-                            <pre style={overlayTextPre}>
-                                <code
-                                    style={{
-                                        ...metrics,
-                                        whiteSpace: "pre",
-                                        color: "transparent",
-                                    }}
-                                >
-                                    {errorContent}
-                                </code>
-                            </pre>
-                        </div>
-
-                        {/* Caret marker for autoscroll */}
-                        <div
-                            ref={caretMarkerRef}
-                            aria-hidden
-                            style={{
-                                position: "absolute",
-                                ...metrics,
-                                left: xCaret,
-                                top: yCaretTop,
-                                width: 1,
-                                height: lineHeight,
-                                scrollMargin: "8px 24px 8px 8px",
-                                zIndex: 0,
-                            }}
-                        />
-
-                        {/* Invisible textarea */}
-                        <textarea
-                            ref={textareaRef}
-                            value={value}
-                            onChange={handleTextAreaChange}
-                            onKeyDown={onKeyDown}
-                            spellCheck="false"
-                            autoCapitalize="none"
-                            autoComplete="off"
-                            autoCorrect="off"
-                            className="absolute top-0 left-0 w-full h-full focus:outline-none"
-                            style={{
-                                background: "transparent",
-                                color: "transparent",
-                                caretColor: "#60a5fa",
-                                whiteSpace: "pre",
-                                resize: "none",
-                                overflow: "hidden",
-                                padding: `${padding}px`,
-                                ...metrics,
-                                zIndex: 3,
-                            }}
-                            aria-label="Type to reveal the code"
-                        />
                     </div>
+                    {/* Ghost overlay (untyped) */}
+                    <div
+                        className="pointer-events-none absolute inset-0"
+                        style={{
+                            ...metrics,
+                            clipPath,
+                            willChange: "clip-path",
+                            zIndex: 1,
+                        }}
+                        aria-hidden
+                    >
+                        <pre style={overlayTextPre}>
+                            <code style={overlayTextCode}>{renderCode}</code>
+                        </pre>
+                    </div>
+
+                    {/* Error overlay */}
+                    <div
+                        className="pointer-events-none absolute inset-0"
+                        style={{
+                            ...metrics,
+                            whiteSpace: "pre",
+                            zIndex: 2,
+                        }}
+                        aria-hidden
+                    >
+                        <pre style={overlayTextPre}>
+                            <code
+                                style={{
+                                    ...metrics,
+                                    whiteSpace: "pre",
+                                    color: "transparent",
+                                }}
+                            >
+                                {errorContent}
+                            </code>
+                        </pre>
+                    </div>
+
+                    {/* Caret marker for autoscroll */}
+                    <div
+                        ref={caretMarkerRef}
+                        aria-hidden
+                        style={{
+                            position: "absolute",
+                            ...metrics,
+                            left: xCaret,
+                            top: yCaretTop,
+                            width: 1,
+                            height: lineHeight,
+                            scrollMargin: "8px 24px 8px 8px",
+                            zIndex: 0,
+                        }}
+                    />
+
+                    {/* Invisible textarea */}
+                    <textarea
+                        ref={textareaRef}
+                        value={value}
+                        onChange={handleTextAreaChange}
+                        onKeyDown={onKeyDown}
+                        spellCheck="false"
+                        autoCapitalize="none"
+                        autoComplete="off"
+                        autoCorrect="off"
+                        className="absolute top-0 left-0 w-full h-full focus:outline-none"
+                        style={{
+                            background: "transparent",
+                            color: "transparent",
+                            caretColor: "#60a5fa",
+                            whiteSpace: "pre",
+                            resize: "none",
+                            overflow: "hidden",
+                            padding: `${padding}px`,
+                            ...metrics,
+                            zIndex: 3,
+                        }}
+                        aria-label="Type to reveal the code"
+                    />
                 </div>
             </div>
         </div>
