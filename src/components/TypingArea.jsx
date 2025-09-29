@@ -24,7 +24,7 @@ const rowColFromPrefixLen = (text, len) => {
 
 // --- Static Configuration ---
 const tabSize = 4; // option to change later
-const minHeight = "300px";
+const minHeight = "260px";
 const maxHeight = "35vh";
 const padding = 16; // px
 const fontSize = 18; // px

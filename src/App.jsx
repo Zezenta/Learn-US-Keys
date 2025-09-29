@@ -98,7 +98,7 @@ function App() {
                     accuracy={Math.round(stats.accuracy)}
                 />
 
-                <div className="mt-4" style={{ height: "44px" }}>
+                <div style={{ height: "44px" }}>
                     {stats.finished && (<Share
                         showShare={stats.finished}
                         onClick={handleShare}
