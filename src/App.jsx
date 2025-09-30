@@ -6,6 +6,7 @@ import Keyboard from "./components/Keyboard";
 import Share from "./components/Share";
 import Stats from "./components/Stats";
 import Footer from "./components/Footer";
+import ActionPrompt from "./components/ActionPrompt";
 import codeSnippets from "./code_snippets.json";
 
 
@@ -20,7 +21,7 @@ const createShuffledDeck = () => {
         }
         return array;
     }
-    const beginnerLangs = ["javascript", "c++", "python", "typescript"];
+    const beginnerLangs = ["javascript", "cpp", "python", "typescript"];
     const beginnerDeck = [];
     const otherDeck = [];
     for(let i = 0; i < codeSnippets.length; i++) {
@@ -53,11 +54,11 @@ const createShuffledDeck = () => {
 
 
 function App() {
-    const [attempt, setAttempt] = useState(0);
-
     const [deck, setDeck] = useState(createShuffledDeck);
     const [snippetIndex, setSnippetIndex] = useState(0);
     const snippet = deck[snippetIndex];
+
+    const [attempt, setAttempt] = useState(0);
 
     const [stats, setStats] = useState({
         wpm: 0,
@@ -90,7 +91,7 @@ function App() {
                     finished: false,
                 });
             } else if (event.key === 'Tab') {
-                setSnippetIndex(prev => prev + 1);
+                setSnippetIndex(prev => prev + 1); // Setting snippetIndex will cause a render which will cause the snippet to change; and TypingArea will remount because its key prop changes
                 setProgress(0); // Progress and stats to initial state
                 setStats({
                     wpm: 0,
@@ -140,10 +141,14 @@ function App() {
 
                 <ProgressBar progress={progress} />
 
-                <Stats
-                    wpm={Math.round(stats.wpm)}
-                    accuracy={Math.round(stats.accuracy)}
-                />
+                <div className="flex flex-row items-center justify-center w-full">
+                    {stats.finished && <ActionPrompt text="Press R to repeat" className="mr-8" />}
+                    <Stats
+                        wpm={Math.round(stats.wpm)}
+                        accuracy={Math.round(stats.accuracy)}
+                    />
+                    {stats.finished && <ActionPrompt text="Press Tab for next" className="ml-8" />}
+                </div>
 
                 <div style={{ height: "44px" }}>
                     {stats.finished && (<Share

@@ -21,7 +21,7 @@
         ]
     },
     {
-        "language": "c++",
+        "language": "cpp",
         "snippets": [
             "#include <iostream>\n#include <vector>\n\nint main() {\n\tstd::vector<int> nums = {10, 20, 30};\n\tfor (int& num : nums) {\n\t\tnum += 5;\n\t}\n\tstd::cout << nums[0] << std::endl;\n}",
             "#include <iostream>\nint main() {\n\tstd::string s = \"Hello\";\n\tstd::cout << s.size() << std::endl;\n\treturn 0;\n}"
