@@ -237,6 +237,7 @@ function TypingArea({
             const finishTime = performance.now();
             finishedAtRef.current = finishTime;
             setFinished(true);
+            textareaRef.current?.blur();
 
             // Stop ticker and send final stats
             stopTicker();

@@ -1,4 +1,4 @@
-import { useState, useCallback } from "react";
+import { useState, useCallback, useEffect } from "react";
 import "./App.css";
 import TypingArea from "./components/TypingArea";
 import ProgressBar from "./components/ProgressBar";
@@ -53,13 +53,12 @@ const createShuffledDeck = () => {
 
 
 function App() {
-    const [deck, setDeck] = useState(createShuffledDeck);
+    const [attempt, setAttempt] = useState(0);
 
-    const snippet = {
-        code: codeSnippets[2].snippets[0],
-        language: codeSnippets[2].language,
-    };
-    const [progress, setProgress] = useState(0);
+    const [deck, setDeck] = useState(createShuffledDeck);
+    const [snippetIndex, setSnippetIndex] = useState(0);
+    const snippet = deck[snippetIndex];
+
     const [stats, setStats] = useState({
         wpm: 0,
         accuracy: 100,
@@ -70,6 +69,54 @@ function App() {
         typed: 0,
         finished: false,
     });
+
+    // Event listeners for R and Tab when snippet ends
+    useEffect(() => {
+        const handleKeyPress = (event) => {
+            // Prevent default behavior (like navigating using Tab)
+            event.preventDefault();
+
+            if (event.key === 'r') {
+                setAttempt(prev => prev + 1); // Change attempt so TypingArea key prop changes and remounts
+                setProgress(0); // Progress and stats to initial state
+                setStats({
+                    wpm: 0,
+                    accuracy: 100,
+                    grossWpm: 0,
+                    netWpm: 0,
+                    elapsedMs: 0,
+                    correct: 0,
+                    typed: 0,
+                    finished: false,
+                });
+            } else if (event.key === 'Tab') {
+                setSnippetIndex(prev => prev + 1);
+                setProgress(0); // Progress and stats to initial state
+                setStats({
+                    wpm: 0,
+                    accuracy: 100,
+                    grossWpm: 0,
+                    netWpm: 0,
+                    elapsedMs: 0,
+                    correct: 0,
+                    typed: 0,
+                    finished: false,
+                });
+            }
+        }
+
+        if(stats.finished) {
+            console.log('añadiendo addeventlistener');
+            document.addEventListener('keydown', handleKeyPress);
+        }
+
+        return () => {
+            document.removeEventListener('keydown', handleKeyPress);
+        }
+    }, [stats.finished]);
+
+
+    const [progress, setProgress] = useState(0);
     const handleShare = useCallback(() => {
         console.log("Share button clicked", stats.wpm);
     }, [stats]);
@@ -81,7 +128,7 @@ function App() {
                 <h1 className="text-4xl font-bold mb-4 font-mono">nerdracer</h1>
 
                 <TypingArea
-                    key={snippet.code}
+                    key={`${snippet.code}-${attempt}`}
                     codeToType={snippet.code}
                     language={snippet.language}
                     onProgressChange={setProgress}
